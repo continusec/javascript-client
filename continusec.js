@@ -183,14 +183,14 @@ ContinusecClient.prototype.makeRequest = function (method, path, data, success, 
  * Returns pointer to mutation log (VerifiableLog).
  */
 VerifiableMap.prototype.getMutationLog = function () {
-    return new VerifiableLog(this, this.path + "/log/mutation");
+    return new VerifiableLog(this.client, this.path + "/log/mutation");
 };
 
 /**
  * Returns pointer to tree head log (VerifiableLog).
  */
 VerifiableMap.prototype.getTreeHeadLog = function () {
-    return new VerifiableLog(this, this.path + "/log/treehead");
+    return new VerifiableLog(this.client, this.path + "/log/treehead");
 };
 
 /**
@@ -241,10 +241,10 @@ VerifiableMap.prototype.getValue = function (key, treeSize, factory, success, fa
 /**
  * VerifiableEntry is passed to success.
  */
-VerifiableMap.prototype.getVerifiedValue = function (key, mapState, success, failure) {
-	this.getValue(key, mapState.getTreeSize(), function(mapResp) {
+VerifiableMap.prototype.getVerifiedValue = function (key, mapState, factory, success, failure) {
+	this.getValue(key, mapState.getTreeSize(), factory, function(mapResp) {
 		try {
-			mapResp.verify(mapState);
+			mapResp.verify(mapState.getMapHead());
 		} catch (err) {
 			failure(err);
 			return;
@@ -293,6 +293,74 @@ VerifiableMap.prototype.getTreeHead = function (treeSize, success, failure) {
         failure(reason);
     });
 };
+
+/**
+ * Success is passed LogTreeHead.
+ */
+VerifiableMap.prototype.blockUntilSize = function (treeSize, success, failure) {
+    doMapBlockRound(this, -1, 0, treeSize, success, failure);
+}
+
+function doMapBlockRound(log, lastHead, secsToSleep, treeSize, success, failure) {
+    log.getTreeHead(0, function (lth) {
+        if (lth.getTreeSize() > lastHead) {
+            if (lth.getTreeSize() >= treeSize) {
+                success(lth);
+            } else {
+                secsToSleep = 1;
+                setTimeout(function () { doMapBlockRound(log, lth.getTreeSize(), secsToSleep, treeSize, success, failure); }, secsToSleep * 1000);
+            }
+        } else {
+            secsToSleep *= 2
+            setTimeout(function () { doMapBlockRound(log, lastHead, secsToSleep, treeSize, success, failure); }, secsToSleep * 1000);
+        }
+    }, failure);
+}
+
+/**
+ * Success is passed a MapStateHead
+ */
+VerifiableMap.prototype.getVerifiedLatestMapState = function (prev, success, failure) {
+    this.getVerifiedMapState(prev, 0, function (head) {
+        if ((prev != null) && (head.getTreeSize() <= prev.getTreeSize())) {
+            success(prev);
+        } else {
+            success(head);
+        }
+    }, failure);
+}
+
+/**
+ * Success is passed a MapStateHead
+ */
+VerifiableMap.prototype.getVerifiedMapState = function (prev, treeSize, success, failure) {
+    if ((treeSize != 0) && (prev != null) && (prev.getTreeSize() == treeSize)) {
+        success(prev);
+    } else {
+        var map = this;
+        map.getTreeHead(treeSize, function (mapHead) {
+            if (prev != null) {
+                map.getMutationLog().verifyConsistency(prev.getMapHead().getMutationLogTreeHead(), mapHead.getMutationLogTreeHead(), function () {
+                    secondStageMapVerified(map, prev, mapHead, success, failure);
+                }, failure);
+            } else {
+                secondStageMapVerified(map, prev, mapHead, success, failure);
+            }
+        }, failure);
+    }
+};
+
+function secondStageMapVerified(map, prev, mapHead, success, failure) {
+    var prevThlth = null;
+    if (prev != null) {
+        prevThlth = prev.getTreeHeadLogTreeHead();
+    }
+    map.getTreeHeadLog().getVerifiedLatestTreeHead(prevThlth, function (thlth) {
+        map.getTreeHeadLog().verifyInclusion(thlth, mapHead, function () {
+            success(new MapTreeState(mapHead, thlth));
+        }, failure);
+    }, failure);
+}
 
 /**
  * No value passed on success.
@@ -366,9 +434,6 @@ VerifiableLog.prototype.verifyEntries = function (prev, head, factory, each, suc
         var stack = [];
         if ((prev != null) && (prev.getTreeSize() > 0)) {
             this.getInclusionProofByIndex(prev.getTreeSize()+1, prev.getTreeSize(), function (proof) {
-                if (prev.getTreeSize() == 50) {
-                    console.log(50);
-                }
                 var firstHash = null;
                 for (var i = 0; i < proof.getAuditPath().length; i++) {
                     if (firstHash == null) {
@@ -380,7 +445,7 @@ VerifiableLog.prototype.verifyEntries = function (prev, head, factory, each, suc
                 if (firstHash != prev.getRootHash()) {
                     failure(CONTINUSEC_VERIFICATION_ERROR);
                 } else {
-                    for (var i = 0; i < proof.getAuditPath().length; i++) {
+                    for (var i = proof.getAuditPath().length - 1; i >= 0; i--) {
                         stack.push(proof.getAuditPath()[i]);
                     }
                     secondStageVerifyEntries(stack, log, prev, head, factory, each, success, failure);
@@ -401,14 +466,14 @@ function secondStageVerifyEntries(stack, log, prev, head, factory, each, success
     }
     log.getEntries(parIdx, head.getTreeSize(), factory, function (idx, entry) {
         each(idx, entry);
-        
+
         stack.push(entry.getLeafHash());
         for (var z = idx; (z & 1) == 1; z >>= 1) {
             var right = stack.pop();
             var left = stack.pop();
             stack.push(nodeMerkleTreeHash(left, right));
         }
-        
+
         parIdx += 1;
     }, function () {
         if (parIdx != head.getTreeSize()) {
@@ -418,7 +483,7 @@ function secondStageVerifyEntries(stack, log, prev, head, factory, each, success
             while (stack.length > 0) {
                 headHash = nodeMerkleTreeHash(stack.pop(), headHash);
             }
-            
+
             if (headHash != head.getRootHash()) {
                 failure(CONTINUSEC_VERIFICATION_ERROR);
             } else {
@@ -506,7 +571,7 @@ VerifiableLog.prototype.verifyConsistency = function (a, b, success, failure) {
 		failure(CONTINUSEC_VERIFICATION_ERROR);
 		return;
 	}
-	
+
 	if (a.getTreeSize() == b.getTreeSize()) {
 		if (a.getRootHash() != b.getRootHash()) {
 			failure(CONTINUSEC_VERIFICATION_ERROR);
@@ -515,7 +580,7 @@ VerifiableLog.prototype.verifyConsistency = function (a, b, success, failure) {
 		success();
 		return;
 	}
-	
+
 	if (a.getTreeSize() > b.getTreeSize()) {
 		var c = a;
 		a = b;
@@ -558,9 +623,13 @@ VerifiableLog.prototype.getVerifiedTreeHead = function (prev, treeSize, success,
     } else {
         var log = this;
         this.getTreeHead(treeSize, function (head) {
-            log.verifyConsistency(prev, head, function () {
+            if (prev == null) {
                 success(head);
-            }, failure);
+            } else {
+                log.verifyConsistency(prev, head, function () {
+                    success(head);
+                }, failure);
+            }
         }, failure);
     }
 }
@@ -591,7 +660,7 @@ function doBlockRound(log, lastHead, secsToSleep, leaf, success, failure) {
     log.getTreeHead(0, function (lth) {
         if (lth.getTreeSize() > lastHead) {
             log.verifyInclusion(lth, leaf, function () {
-                success(lth);   
+                success(lth);
             }, function (reason) {
                 if (reason == CONTINUSEC_INVALID_RANGE_ERROR) {
                     secsToSleep = 1;
@@ -631,14 +700,14 @@ LogConsistencyProof.prototype.verify = function (first, second) {
 	if (second.getTreeSize() != this.secondSize) {
     	throw CONTINUSEC_VERIFICATION_ERROR;
 	}
-	
+
     if ((this.firstSize < 1) || (this.firstSize >= this.secondSize)) {
     	throw CONTINUSEC_VERIFICATION_ERROR;
     }
 
     var newProof = [];
     if (isPow2(this.firstSize)) {
-        newProof.push(firstHash);
+        newProof.push(first.getRootHash());
     }
     var i;
     for (i = 0; i < this.auditPath.length; i++) {
@@ -675,11 +744,11 @@ LogConsistencyProof.prototype.verify = function (first, second) {
         fn >>= 1;
         sn >>= 1;
     }
-    
+
     if (sn != 0) {
     	throw CONTINUSEC_VERIFICATION_ERROR;
     }
-    
+
     if (fr != first.getRootHash()) {
     	throw CONTINUSEC_VERIFICATION_ERROR;
     }
@@ -729,11 +798,11 @@ LogInclusionProof.prototype.verify = function (head) {
         fn >>= 1;
         sn >>= 1;
     }
-    
+
     if (sn != 0) {
     	throw CONTINUSEC_VERIFICATION_ERROR;
     }
-    
+
     if (r != head.getRootHash()) {
     	throw CONTINUSEC_VERIFICATION_ERROR;
     }
@@ -812,7 +881,7 @@ var RedactedJsonEntry = function (data) {
 }
 
 RedactedJsonEntry.prototype.getData = function () {
-	return JSON.stringify(shedRedactionWithStdPrefix(JSON.parse(this.data)));
+	return JSON.stringify(shedRedactedWithStdRedaction(JSON.parse(this.data)));
 }
 
 RedactedJsonEntry.prototype.getLeafHash = function () {
@@ -851,6 +920,16 @@ MapTreeHead.prototype.getMutationLogTreeHead = function () {
 
 MapTreeHead.prototype.getRootHash = function () {
 	return this.rootHash;
+}
+
+MapTreeHead.prototype.getLeafHash = function () {
+	return leafMerkleTreeHash(objectHashWithStdRedaction({
+	    "mutation_log": {
+	        "tree_size": this.getMutationLogTreeHead().getTreeSize(),
+	        "tree_hash": btoa(this.getMutationLogTreeHead().getRootHash()),
+	    },
+	    "map_hash": btoa(this.getRootHash()),
+	}));
 }
 
 var LogTreeHead = function (treeSize, rootHash) {
@@ -896,7 +975,7 @@ MapEntryResponse.prototype.verify = function (mapTreeHead) {
     var kp = constructKeyPath(this.key);
     var t = this.value.getLeafHash();
     for (var i = kp.length - 1; i >= 0; i--) {
-        var p = proof[i];
+        var p = this.auditPath[i];
         if (p === null) {
             p = DEFAULT_LEAF_VALUES[i + 1];
         }
@@ -1062,17 +1141,17 @@ function objectHashWithRedaction(o, prefix) {
 	}
 }
 
-function shedRedactableWithStdRedaction(o) {
-	return shedRedactable(o, REDACTED_PREFIX);
+function shedRedactedWithStdRedaction(o) {
+	return shedRedacted(o, REDACTED_PREFIX);
 }
 
-function shedRedactable(o, prefix) {
+function shedRedacted(o, prefix) {
 	if (o == null) {
 		return null;
 	} else if (o instanceof Array) {
 		var rv = [];
 		for (var i = 0; i < o.length; i++) {
-			rv.push(shedRedactable(o[i], prefix));
+			rv.push(shedRedacted(o[i], prefix));
 		}
 		return rv;
 	} else if ((typeof o) == "object") {
@@ -1081,7 +1160,7 @@ function shedRedactable(o, prefix) {
 			var v = o[k];
 			if (v instanceof Array) {
 				if (v.length == 2) {
-					rv[k] = shedRedactable(v[1], prefix);
+					rv[k] = shedRedacted(v[1], prefix);
 				} else {
 					return undefined;
 				}
@@ -1095,6 +1174,7 @@ function shedRedactable(o, prefix) {
 				return undefined;
 			}
 		}
+		return rv;
 	} else {
 		return o;
 	}

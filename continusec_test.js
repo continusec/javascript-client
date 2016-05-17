@@ -15,7 +15,7 @@ function testContinusec(idx) {
 			testContinusec(idx+1);
 		});
 		break;
-	case 1: 
+	case 1:
 		var client = new ContinusecClient("7981306761429961588", "wrongcred", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
 		log.getTreeHead(0, function (treeHead) {
@@ -27,7 +27,7 @@ function testContinusec(idx) {
 			testContinusec(idx+1);
 		});
 		break;
-	case 2: 
+	case 2:
 		var client = new ContinusecClient("wrongaccount", "wrongcred", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
 		log.getTreeHead(0, function (treeHead) {
@@ -39,7 +39,7 @@ function testContinusec(idx) {
 			testContinusec(idx+1);
 		});
 		break;
-	case 3: 
+	case 3:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
 		log.create(function () {
@@ -55,7 +55,7 @@ function testContinusec(idx) {
 			throw reason;
 		});
 		break;
-	case 4: 
+	case 4:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
 		log.add(new RawDataEntry("foo"), function () {
@@ -64,7 +64,7 @@ function testContinusec(idx) {
 		    throw reason;
 		});
 		break;
-	case 5: 
+	case 5:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
 		log.add(new JsonEntry("{\"name\":\"adam\",\"ssn\":123.45}"), function () {
@@ -73,7 +73,7 @@ function testContinusec(idx) {
 		    throw reason;
 		});
 		break;
-	case 6: 
+	case 6:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
 		log.add(new RedactableJsonEntry("{\"name\":\"adam\",\"ssn\":123.45}"), function () {
@@ -82,7 +82,7 @@ function testContinusec(idx) {
 		    throw reason;
 		});
 		break;
-	case 7: 
+	case 7:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
 		log.add(new RawDataEntry("foo"), function (aer) {
@@ -95,7 +95,7 @@ function testContinusec(idx) {
 		    throw reason;
 		});
 		break;
-	case 8: 
+	case 8:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
         log.getTreeHead(0, function (head) {
@@ -108,14 +108,14 @@ function testContinusec(idx) {
             throw reason;
         });
 		break;
-	case 9: 
+	case 9:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
-		
+
 		if (testGlobal.idx == undefined) {
 		    testGlobal.idx = 0
 		}
-		
+
 		if (testGlobal.idx == 100) {
             testContinusec(idx+1);
 		} else {
@@ -127,7 +127,7 @@ function testContinusec(idx) {
             });
         }
 		break;
-	case 10: 
+	case 10:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
         log.getVerifiedLatestTreeHead(testGlobal.head, function (head) {
@@ -140,7 +140,7 @@ function testContinusec(idx) {
             throw reason;
         });
 		break;
-	case 11: 
+	case 11:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
 		log.verifyInclusion(testGlobal.head103, new RawDataEntry("foo27"), function () {
@@ -149,7 +149,7 @@ function testContinusec(idx) {
             testContinusec(idx+1);
 		});
 		break;
-	case 12: 
+	case 12:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
 		log.getInclusionProof(testGlobal.head103.getTreeSize(), new RawDataEntry("foo-27"), function (proof) {
@@ -167,7 +167,7 @@ function testContinusec(idx) {
             throw reason;
 		});
 		break;
-	case 13: 
+	case 13:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
         log.getTreeHead(50, function (head) {
@@ -180,7 +180,7 @@ function testContinusec(idx) {
             throw reason;
         });
 		break;
-	case 14: 
+	case 14:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
         log.getConsistencyProof(50, 103, function (proof) {
@@ -199,7 +199,7 @@ function testContinusec(idx) {
             throw reason;
         });
 		break;
-	case 15: 
+	case 15:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
         log.getInclusionProof(10, new RawDataEntry("foo"), function (proof) {
@@ -216,7 +216,7 @@ function testContinusec(idx) {
             throw reason;
         });
 		break;
-	case 16: 
+	case 16:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
 		var count = 0;
@@ -232,7 +232,7 @@ function testContinusec(idx) {
             throw reason;
         });
 		break;
-	case 17: 
+	case 17:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
 		log.getTreeHead(1, function (head) {
@@ -253,7 +253,7 @@ function testContinusec(idx) {
             throw reason;
         });
 		break;
-	case 18: 
+	case 18:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
 		log.getTreeHead(3, function (head3) {
@@ -273,7 +273,7 @@ function testContinusec(idx) {
             throw reason;
         });
 		break;
-	case 19: 
+	case 19:
 		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
 		var log = client.getVerifiableLog("newtestlog");
         var count = 0;
@@ -289,110 +289,254 @@ function testContinusec(idx) {
             throw reason;
         });
 		break;
+	case 20:
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+        var je = new JsonEntry("{	\"ssn\":  123.4500 ,   \"name\" :  \"adam\"}");
+        log.verifyInclusion(testGlobal.head103, je, function () {
+            testContinusec(idx+1);
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 21:
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+        log.getEntry(2, REDACTED_JSON_ENTRY_FACTORY, function (redEnt) {
+            var dd = redEnt.getData();
+            if (dd.indexOf("ssn") >= 0) {
+                throw "wrong";
+            } else if (dd.indexOf("adam") < 0) {
+                throw "wrong";
+            } else {
+                log.verifyInclusion(testGlobal.head103, redEnt, function () {
+                    testContinusec(idx+1);
+                }, function (reason) {
+                    throw reason;
+                });
+            }
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 22:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+        log.getEntry(2, REDACTED_JSON_ENTRY_FACTORY, function (redEnt) {
+            var dd = redEnt.getData();
+            if (dd.indexOf("123.45") < 0) {
+                throw "wrong";
+            } else if (dd.indexOf("adam") < 0) {
+                throw "wrong";
+            } else {
+                log.verifyInclusion(testGlobal.head103, redEnt, function () {
+                    testContinusec(idx+1);
+                }, function (reason) {
+                    throw reason;
+                });
+            }
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 23:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var map = client.getVerifiableMap("nnewtestmap");
+		map.getTreeHead(0, function () {
+		    throw "Wrong";
+		}, function (reason) {
+			if (reason != CONTINUSEC_NOT_FOUND_ERROR) {
+				throw reason;
+			}
+            testContinusec(idx+1);
+		});
+   		break;
+	case 24:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var map = client.getVerifiableMap("nnewtestmap");
+		map.create(function () {
+		   map.create(function () {
+				throw "expected failure";
+			}, function (reason) {
+				if (reason != CONTINUSEC_OBJECT_CONFLICT_ERROR) {
+					throw reason;
+				}
+				testContinusec(idx+1);
+			});
+		}, function (reason) {
+			throw reason;
+		});
+		break;
+	case 25:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var map = client.getVerifiableMap("nnewtestmap");
+		map.setValue("foo", new RawDataEntry("foo"), function () {
+            testContinusec(idx+1);
+		}, function (reason) {
+		    throw reason;
+		});
+		break;
+	case 26:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var map = client.getVerifiableMap("nnewtestmap");
+		map.setValue("fiz", new JsonEntry("{\"name\":\"adam\",\"ssn\":123.45}"), function () {
+            testContinusec(idx+1);
+		}, function (reason) {
+		    throw reason;
+		});
+		break;
+	case 27:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var map = client.getVerifiableMap("nnewtestmap");
+		map.setValue("foz", new RedactableJsonEntry("{\"name\":\"adam\",\"ssn\":123.45}"), function (resp) {
+		    testGlobal.mapResp = resp;
+            testContinusec(idx+1);
+		}, function (reason) {
+		    throw reason;
+		});
+		break;
+	case 28:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var map = client.getVerifiableMap("nnewtestmap");
+
+		if (testGlobal.mapIdx == undefined) {
+		    testGlobal.mapIdx = 0
+		}
+
+		if (testGlobal.mapIdx == 100) {
+            testContinusec(idx+1);
+		} else {
+            map.setValue("foo" + testGlobal.mapIdx, new RawDataEntry("fooval" + testGlobal.mapIdx), function () {
+                testGlobal.mapIdx += 1;
+                testContinusec(idx);
+            }, function (reason) {
+                throw reason;
+            });
+        }
+		break;
+	case 29:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var map = client.getVerifiableMap("nnewtestmap");
+		map.deleteValue("foo", function (resp) {
+            testContinusec(idx+1);
+		}, function (reason) {
+		    throw reason;
+		});
+		break;
+	case 30:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var map = client.getVerifiableMap("nnewtestmap");
+		map.deleteValue("foodddd", function (resp) {
+            testContinusec(idx+1);
+		}, function (reason) {
+		    throw reason;
+		});
+		break;
+	case 31:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var map = client.getVerifiableMap("nnewtestmap");
+		map.deleteValue("foo27", function (resp) {
+            testContinusec(idx+1);
+		}, function (reason) {
+		    throw reason;
+		});
+		break;
+	case 32:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var map = client.getVerifiableMap("nnewtestmap");
+		var ml = map.getMutationLog();
+        ml.blockUntilPresent(testGlobal.mapResp, function (head) {
+            if (head.getTreeSize() != 106) {
+                throw "wrong";
+            } else {
+                map.blockUntilSize(head.getTreeSize(), function (mapHead) {
+                    if (mapHead.getTreeSize() != 106) {
+                        throw "wrong";
+                    } else {
+                        testGlobal.mrHead = mapHead;
+                        testContinusec(idx+1);
+                    }
+                }, function (reason) {
+                    throw reason;
+                });
+            }
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 33:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var map = client.getVerifiableMap("nnewtestmap");
+        map.getValue("foo", testGlobal.mrHead.getTreeSize(), RAW_DATA_ENTRY_FACTORY, function (entryResp) {
+            entryResp.verify(testGlobal.mrHead);
+            var dd = entryResp.getValue().getData();
+            if (dd.length > 0) {
+                throw dd;
+            } else {
+                testContinusec(idx+1);
+            }
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 34:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var map = client.getVerifiableMap("nnewtestmap");
+        map.getValue("foo-29", testGlobal.mrHead.getTreeSize(), RAW_DATA_ENTRY_FACTORY, function (entryResp) {
+            entryResp.verify(testGlobal.mrHead);
+            var dd = entryResp.getValue().getData();
+            if (dd.length > 0) {
+                throw dd;
+            } else {
+                testContinusec(idx+1);
+            }
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 35:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var map = client.getVerifiableMap("nnewtestmap");
+        map.getValue("foo29", testGlobal.mrHead.getTreeSize(), RAW_DATA_ENTRY_FACTORY, function (entryResp) {
+            entryResp.verify(testGlobal.mrHead);
+            var dd = entryResp.getValue().getData();
+            if (dd != "fooval29") {
+                throw dd;
+            } else {
+                testContinusec(idx+1);
+            }
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 36:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var map = client.getVerifiableMap("nnewtestmap");
+        map.getVerifiedLatestMapState(null, function (mapState106) {
+            map.getVerifiedMapState(mapState106, 0, function () {
+                map.getVerifiedMapState(mapState106, 2, function (mapState2) {
+                    if (mapState2.getTreeSize() != 2) {
+                        throw "2";
+                    } else {
+                        map.getVerifiedValue("foo", mapState2, RAW_DATA_ENTRY_FACTORY, function (ve) {
+                            if (ve.getData() != "foo") {
+                                throw ve;
+                            } else {
+                                console.log("All tests completed sucessfully.");
+                            }
+                        }, function (reason) {
+                            throw reason;
+                        });
+                    }
+                }, function (reason) {
+                    throw reason;
+                });
+            }, function (reason) {
+                throw reason;
+            });
+        }, function (reason) {
+            throw reason;
+        });
+		break;
 	}
 }
-
-/*
-
-
-
-	JsonEntry je = new JsonEntry("{	\"ssn\":  123.4500 ,   \"name\" :  \"adam\"}".getBytes());
-	log.verifyInclusion(head103, je);
-
-	VerifiableEntry redEnt = log.get(2, RedactedJsonEntryFactory.getInstance());
-	String dd = new String(redEnt.getData());
-	if (dd.indexOf("ssn") >= 0) {
-		throw new RuntimeException();
-	}
-	if (dd.indexOf("adam") < 0) {
-		throw new RuntimeException();
-	}
-	log.verifyInclusion(head103, redEnt);
-
-	client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
-	log = client.getVerifiableLog("newtestlog");
-
-	redEnt = log.get(2, RedactedJsonEntryFactory.getInstance());
-	dd = new String(redEnt.getData());
-	if (dd.indexOf("123.45") < 0) {
-		throw new RuntimeException();
-	}
-	if (dd.indexOf("adam") < 0) {
-		throw new RuntimeException();
-	}
-	log.verifyInclusion(head103, redEnt);
-
-	VerifiableMap map = client.getVerifiableMap("nnewtestmap");
-	try {
-		map.getTreeHead(client.HEAD);
-		throw new RuntimeException();
-	} catch (ObjectNotFoundException e) {
-		// good
-	}
-
-	map.create();
-	try {
-		map.create();
-		throw new RuntimeException();
-	} catch (ObjectConflictException e) {
-		// good
-	}
-
-	map.set("foo".getBytes(), new RawDataEntry("foo".getBytes()));
-	map.set("fiz".getBytes(), new JsonEntry("{\"name\":\"adam\",\"ssn\":123.45}".getBytes()));
-	AddEntryResponse waitResponse = map.set("foz".getBytes(), new RedactableJsonEntry("{\"name\":\"adam\",\"ssn\":123.45}".getBytes()));
-
-	for (int i = 0; i < 100; i++) {
-		map.set(("foo"+i).getBytes(), new RawDataEntry(("fooval"+i).getBytes()));
-	}
-
-	map.delete("foo".getBytes());
-	map.delete("foodddd".getBytes());
-	map.delete("foo27".getBytes());
-
-	LogTreeHead mlHead = map.getMutationLog().blockUntilPresent(waitResponse);
-	if (mlHead.getTreeSize() != 106) {
-		throw new RuntimeException();
-	}
-
-	MapTreeHead mrHead = map.blockUntilSize(mlHead.getTreeSize());
-	if (mrHead.getMutationLogTreeHead().getTreeSize() != 106) {
-		throw new RuntimeException();
-	}
-	MapGetEntryResponse entryResp = map.get("foo".getBytes(), mrHead.getTreeSize(), RawDataEntryFactory.getInstance());
-	entryResp.verify(mrHead);
-
-	dd = new String(entryResp.getValue().getData());
-	if (dd.length() > 0) {
-		throw new RuntimeException();
-	}
-
-	entryResp = map.get("foo-29".getBytes(), mrHead.getTreeSize(), RawDataEntryFactory.getInstance());
-	entryResp.verify(mrHead);
-
-	dd = new String(entryResp.getValue().getData());
-	if (dd.length() > 0) {
-		throw new RuntimeException();
-	}
-
-	entryResp = map.get("foo29".getBytes(), mrHead.getTreeSize(), RawDataEntryFactory.getInstance());
-	entryResp.verify(mrHead);
-
-	dd = new String(entryResp.getValue().getData());
-	if (!"fooval29".equals(dd)) {
-		throw new RuntimeException();
-	}
-
-	MapTreeState mapState106 = map.getVerifiedLatestMapState(null);
-	map.getVerifiedMapState(mapState106, 0);
-	MapTreeState mapState2 = map.getVerifiedMapState(mapState106, 2);
-
-	if (mapState2.getTreeSize() != 2) {
-		throw new RuntimeException();
-	}
-
-	VerifiableEntry ve = map.getVerifiedValue("foo".getBytes(), mapState2, RawDataEntryFactory.getInstance());
-	if (!"foo".equals(new String(ve.getData()))) {
-		throw new RuntimeException();
-	}*/
-
