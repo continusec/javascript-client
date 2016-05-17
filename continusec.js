@@ -95,34 +95,57 @@ var CONTINUSEC_INVALID_RANGE_ERROR = 2;
 var CONTINUSEC_UNAUTHORIZED_ERROR = 3;
 var CONTINUSEC_NOT_FOUND_ERROR = 4;
 var CONTINUSEC_INTERNAL_ERROR = 5;
+var CONTINUSEC_OBJECT_CONFLICT_ERROR = 6;
+var CONTINUSEC_VERIFICATION_ERROR = 7;
 
 var CONTINUSEC_HEAD = 0;
 
+/**
+ * Private
+ */
 var VerifiableMap = function (client, path) {
     this.client = client;
     this.path = path;
 };
 
+/**
+ * Private
+ */
 var VerifiableLog = function (client, path) {
     this.client = client;
     this.path = path;
 };
 
-var ContinusecClient = function (account, apiKey) {
+/**
+ * baseURL is optional, and normally left empty (defaults to https://api.continusec.com).
+ */
+var ContinusecClient = function (account, apiKey, baseURL) {
     this.account = account;
     this.apiKey = apiKey;
-    this.baseURL = "https://api.continusec.com";
+    if (baseURL == undefined) {
+		this.baseURL = "https://api.continusec.com";
+    } else {
+		this.baseURL = baseURL;
+	}
 };
 
-ContinusecClient.prototype.verifiableMap = function (name) {
+/**
+ * Returns pointer to verifiable map
+ */
+ContinusecClient.prototype.getVerifiableMap = function (name) {
     return new VerifiableMap(this, "/map/" + name);
 };
 
-ContinusecClient.prototype.verifiableLog = function (name) {
+/**
+ * Returns pointer to verifiable log
+ */
+ContinusecClient.prototype.getVerifiableLog = function (name) {
     return new VerifiableLog(this, "/log/" + name);
 };
 
-/* this method is private to the implementation and should not be called directly */
+/**
+ * Private
+ */
 ContinusecClient.prototype.makeRequest = function (method, path, data, success, failure) {
     var req = new XMLHttpRequest();
     req.onload = function (evt) {
@@ -140,6 +163,9 @@ ContinusecClient.prototype.makeRequest = function (method, path, data, success, 
         case 404:
             failure(CONTINUSEC_NOT_FOUND_ERROR);
             break;
+        case 409:
+            failure(CONTINUSEC_OBJECT_CONFLICT_ERROR);
+            break;
         default:
             failure(CONTINUSEC_INTERNAL_ERROR);
         }
@@ -153,14 +179,24 @@ ContinusecClient.prototype.makeRequest = function (method, path, data, success, 
     req.send(data);
 };
 
-VerifiableMap.prototype.mutationLog = function () {
+/**
+ * Returns pointer to mutation log (VerifiableLog).
+ */
+VerifiableMap.prototype.getMutationLog = function () {
     return new VerifiableLog(this, this.path + "/log/mutation");
 };
 
-VerifiableMap.prototype.treeHeadLog = function () {
+/**
+ * Returns pointer to tree head log (VerifiableLog).
+ */
+VerifiableMap.prototype.getTreeHeadLog = function () {
     return new VerifiableLog(this, this.path + "/log/treehead");
 };
 
+/**
+ * No value is passed to success.
+ * Reason is passed to failure.
+ */
 VerifiableMap.prototype.create = function (success, failure) {
     this.client.makeRequest("PUT", this.path, null, function (data, req) {
         success();
@@ -169,8 +205,17 @@ VerifiableMap.prototype.create = function (success, failure) {
     });
 };
 
-VerifiableMap.prototype.getValue = function (key, treeSize, success, failure) {
-    this.client.makeRequest("GET", this.path + "/tree/" + treeSize + "/key/h/" + hexString(key), null, function (data, req) {
+/**
+ * MapEntryResponse is passed to success.
+ */
+VerifiableMap.prototype.getValue = function (key, treeSize, factory, success, failure) {
+    this.client.makeRequest("GET", this.path + "/tree/" + treeSize + "/key/h/" + hexString(key) + factory.getFormat(), null, function (data, req) {
+        var verifiedTreeSize = req.getResponseHeader("X-Verified-Treesize");
+        if (verifiedTreeSize === null) {
+            failure(CONTINUSEC_NOT_FOUND_ERROR);
+            return;
+        }
+        verifiedTreeSize = Number(verifiedTreeSize);
         var proof = req.getResponseHeader("X-Verified-Proof");
         if (proof === null) {
             proof = "";
@@ -187,37 +232,71 @@ VerifiableMap.prototype.getValue = function (key, treeSize, success, failure) {
                 auditPath[Number(pieces[0].trim())] = decodeHex(pieces[1].trim());
             }
         }
-        success(data, auditPath);
+        success(new MapEntryResponse(key, factory.createFromBytes(data), verifiedTreeSize, auditPath));
     }, function (reason) {
         failure(reason);
     });
 };
 
+/**
+ * VerifiableEntry is passed to success.
+ */
+VerifiableMap.prototype.getVerifiedValue = function (key, mapState, success, failure) {
+	this.getValue(key, mapState.getTreeSize(), function(mapResp) {
+		try {
+			mapResp.verify(mapState);
+		} catch (err) {
+			failure(err);
+			return;
+		}
+		success(mapResp.getValue());
+	}, function (reason) {
+		failure(reason);
+	});
+};
+
+/**
+ * Value is VerifiableEntry.
+ * AddEntryResponse is passed to success.
+ */
 VerifiableMap.prototype.setValue = function (key, value, success, failure) {
-    this.client.makeRequest("PUT", this.path + "/key/h/" + hexString(key), value, function (data, req) {
-        success();
+    this.client.makeRequest("PUT", this.path + "/key/h/" + hexString(key) + value.getFormat(), value.getDataForUpload(), function (data, req) {
+        var obj = JSON.parse(data);
+        success(new AddEntryResponse(atob(obj.leaf_hash)));
     }, function (reason) {
         failure(reason);
     });
 };
 
+/**
+ * Value is VerifiableEntry.
+ * AddEntryResponse is passed to success.
+ */
 VerifiableMap.prototype.deleteValue = function (key, success, failure) {
     this.client.makeRequest("DELETE", this.path + "/key/h/" + hexString(key), null, function (data, req) {
-        success();
+        var obj = JSON.parse(data);
+        success(new AddEntryResponse(atob(obj.leaf_hash)));
     }, function (reason) {
         failure(reason);
     });
 };
+/**
 
-VerifiableMap.prototype.treeHash = function (treeSize, success, failure) {
+/**
+ * MapTreeHead is passed to success.
+ */
+VerifiableMap.prototype.getTreeHead = function (treeSize, success, failure) {
     this.client.makeRequest("GET", this.path + "/tree/" + treeSize, null, function (data, req) {
         var obj = JSON.parse(data);
-        success(Number(obj.mutation_log.tree_size), atob(obj.map_hash));
+        success(new MapTreeHead(new LogTreeHead(Number(obj.mutation_log.tree_size), atob(obj.mutation_log.tree_hash)), atob(obj.map_hash)));
     }, function (reason) {
         failure(reason);
     });
 };
 
+/**
+ * No value passed on success.
+ */
 VerifiableLog.prototype.create = function (success, failure) {
     this.client.makeRequest("PUT", this.path, null, function (data, req) {
         success();
@@ -226,70 +305,450 @@ VerifiableLog.prototype.create = function (success, failure) {
     });
 };
 
+/**
+ * AddEntryResponse is passed to success.
+ */
 VerifiableLog.prototype.add = function (value, success, failure) {
-    this.client.makeRequest("POST", this.path + "/entry", value, function (data, req) {
+    this.client.makeRequest("POST", this.path + "/entry" + value.getFormat(), value.getDataForUpload(), function (data, req) {
         var obj = JSON.parse(data);
-        success(atob(obj.leaf_hash));
+        success(new AddEntryResponse(atob(obj.leaf_hash)));
     }, function (reason) {
         failure(reason);
     });
 };
 
-VerifiableLog.prototype.treeHash = function (treeSize, success, failure) {
+/**
+ * LogTreeHead passed to success.
+ */
+VerifiableLog.prototype.getTreeHead = function (treeSize, success, failure) {
     this.client.makeRequest("GET", this.path + "/tree/" + treeSize, null, function (data, req) {
         var obj = JSON.parse(data);
-        success(Number(obj.tree_size), obj.tree_hash === null ? null : atob(obj.tree_hash));
+        success(new LogTreeHead(Number(obj.tree_size), obj.tree_hash === null ? null : atob(obj.tree_hash)));
     }, function (reason) {
         failure(reason);
     });
 };
 
-VerifiableLog.prototype.getEntry = function (idx, success, failure) {
-    this.client.makeRequest("GET", this.path + "/entry/" + idx, null, function (data, req) {
-        success(data);
+/**
+ * VerifiableEntry passed on success
+ */
+VerifiableLog.prototype.getEntry = function (idx, factory, success, failure) {
+    this.client.makeRequest("GET", this.path + "/entry/" + idx + factory.getFormat(), null, function (data, req) {
+        success(factory.createFromBytes(data, idx));
     }, function (reason) {
         failure(reason);
     });
 };
 
-VerifiableLog.prototype.getEntries = function (startIdx, endIdx, success, failure) {
-    this.client.makeRequest("GET", this.path + "/entries/" + startIdx + "-" + endIdx, null, function (data, req) {
-        var obj = JSON.parse(data);
-        var rv = [];
-        for (var i = 0; i < obj.entries.length; i++) {
-            rv.push(atob(obj.entries[i].leaf_data));
-        }
-        success(rv);
+/**
+ * Each is called with (index, VerifiableEntry) for each entry, and then success afterwards with no value.
+ */
+VerifiableLog.prototype.getEntries = function (startIdx, endIdx, factory, each, success, failure) {
+    this.client.makeRequest("GET", this.path + "/entries/" + startIdx + "-" + endIdx + factory.getFormat(), null, function (data, req) {
+    	try {
+			var obj = JSON.parse(data);
+			for (var i = 0; i < obj.entries.length; i++) {
+				each(startIdx + i, factory.createFromBytes(atob(obj.entries[i].leaf_data)));
+			}
+		} catch (err) {
+			failure(err);
+			return
+		}
+		success();
     }, function (reason) {
         failure(reason);
     });
 };
 
-VerifiableLog.prototype.inclusionProof = function (treeSize, mtlHash, success, failure) {
-    this.client.makeRequest("GET", this.path + "/tree/" + treeSize + "/inclusion/h/" + hexString(mtlHash), null, function (data, req) {
+/**
+ * Success is called with LogInclusionProof.
+ */
+VerifiableLog.prototype.getInclusionProof = function (treeSize, leaf, success, failure) {
+	var lh = leaf.getLeafHash();
+    this.client.makeRequest("GET", this.path + "/tree/" + treeSize + "/inclusion/h/" + hexString(lh), null, function (data, req) {
         var obj = JSON.parse(data);
         var auditPath = [];
         for (var i = 0; i < obj.proof.length; i++) {
             auditPath.push(atob(obj.proof[i]));
         }
-        success(Number(obj.leaf_index), auditPath);
+        success(new LogInclusionProof(lh, Number(obj.tree_size), Number(obj.leaf_index), auditPath));
     }, function (reason) {
         failure(reason);
     });
 };
 
-VerifiableLog.prototype.consistencyProof = function (first, second, success, failure) {
+/**
+ * Success is called with no value
+ */
+VerifiableLog.prototype.verifyInclusion = function (head, leaf, success, failure) {
+	this.getInclusionProof(head.getTreeSize(), leaf, function (proof) {
+		try {
+			proof.verify(head);
+		} catch (err) {
+			failure(err);
+			return;
+		}
+		success();
+	}, function (reason) {
+		failure(reason);
+	});
+}
+
+/**
+ * Success is called with LogConsistencyProof
+ */
+VerifiableLog.prototype.getConsistencyProof = function (firstSize, secondSize, success, failure) {
     this.client.makeRequest("GET", this.path + "/tree/" + second + "/consistency/" + first, null, function (data, req) {
         var obj = JSON.parse(data);
         var auditPath = [];
         for (var i = 0; i < obj.proof.length; i++) {
             auditPath.push(atob(obj.proof[i]));
         }
-        success(auditPath);
+        success(new LogConsistencyProof(firstSize, secondSize, auditPath));
     }, function (reason) {
         failure(reason);
     });
 };
+
+/**
+ * Success is called with no value.
+ */
+VerifiableLog.prototype.verifyConsistency = function (a, b, success, failure) {
+	if (a.getTreeSize() <= 0) {
+		failure(CONTINUSEC_VERIFICATION_ERROR);
+		return;
+	}
+	if (b.getTreeSize() <= 0) {
+		failure(CONTINUSEC_VERIFICATION_ERROR);
+		return;
+	}
+	
+	if (a.getTreeSize() == b.getTreeSize()) {
+		if (a.getRootHash() != b.getRootHash()) {
+			failure(CONTINUSEC_VERIFICATION_ERROR);
+			return;
+		}
+		success();
+		return;
+	}
+	
+	if (a.getTreeSize() > b.getTreeSize()) {
+		var c = a;
+		a = b;
+		b = c;
+	}
+
+	this.getConsistencyProof(a.getTreeSize(), b.getTreeSize(), function (proof) {
+		try {
+			proof.verify(a, b);
+		} catch (err) {
+			failure(err);
+			return;
+		}
+		success();
+	}, function (reason) {
+		failure(reason);
+	});
+}
+
+
+var LogConsistencyProof = function (firstSize, secondSize, auditPath) {
+	this.firstSize = firstSize;
+	this.secondSize = secondSize;
+	this.auditPath = auditPath;
+};
+LogConsistencyProof.prototype.getFirstSize = function () { return this.firstSize; };
+LogConsistencyProof.prototype.getSecondSize = function () { return this.secondSize; };
+LogConsistencyProof.prototype.getAuditPath = function () { return this.auditPath; };
+/**
+ * Head is a LogTreeHead
+ */
+LogConsistencyProof.prototype.verify = function (first, second) {
+	if (first.getTreeSize() != this.firstSize) {
+    	throw CONTINUSEC_VERIFICATION_ERROR;
+	}
+	if (second.getTreeSize() != this.secondSize) {
+    	throw CONTINUSEC_VERIFICATION_ERROR;
+	}
+	
+    if ((this.firstSize < 1) || (this.firstSize >= this.secondSize)) {
+    	throw CONTINUSEC_VERIFICATION_ERROR;
+    }
+
+    var newProof = [];
+    if (isPow2(this.firstSize)) {
+        newProof.push(firstHash);
+    }
+    var i;
+    for (i = 0; i < this.auditPath.length; i++) {
+        newProof.push(this.auditPath[i]);
+    }
+
+    var fn = this.firstSize - 1;
+    var sn = this.secondSize - 1;
+    while ((fn & 1) == 1) {
+        fn >>= 1;
+        sn >>= 1;
+    }
+
+    if (newProof.length === 0) {
+        return false;
+    }
+
+    var fr = newProof[0];
+    var sr = newProof[0];
+    for (i = 1; i < newProof.length; i++) {
+        if (sn === 0) {
+            return false;
+        }
+        if (((fn & 1) == 1) || (fn == sn)) {
+            fr = nodeMerkleTreeHash(newProof[i], fr);
+            sr = nodeMerkleTreeHash(newProof[i], sr);
+            while (!((fn === 0) || ((fn & 1) == 1))) {
+                fn >>= 1;
+                sn >>= 1;
+            }
+        } else {
+            sr = nodeMerkleTreeHash(sr, newProof[i]);
+        }
+        fn >>= 1;
+        sn >>= 1;
+    }
+    
+    if (sn != 0) {
+    	throw CONTINUSEC_VERIFICATION_ERROR;
+    }
+    
+    if (fr != first.getRootHash()) {
+    	throw CONTINUSEC_VERIFICATION_ERROR;
+    }
+
+    if (sr != second.getRootHash()) {
+    	throw CONTINUSEC_VERIFICATION_ERROR;
+    }
+}
+
+var LogInclusionProof = function (leafHash, treeSize, leafIndex, auditPath) {
+	this.leafHash = leafHash;
+	this.treeSize = treeSize;
+	this.leafIndex = leafIndex;
+	this.auditPath = auditPath;
+};
+LogInclusionProof.prototype.getLeafHash = function () { return this.leafHash; };
+LogInclusionProof.prototype.getTreeSize = function () { return this.treeSize; };
+LogInclusionProof.prototype.getLeafIndex = function () { return this.leafIndex; };
+LogInclusionProof.prototype.getAuditPath = function () { return this.auditPath; };
+
+/**
+ * Head is a LogTreeHead
+ */
+LogInclusionProof.prototype.verify = function (head) {
+	if (head.getTreeSize() != this.treeSize) {
+    	throw CONTINUSEC_VERIFICATION_ERROR;
+	}
+
+    if ((this.leafIndex >= this.treeSize) || (this.leafIndex < 0)) {
+        return false;
+    }
+
+    var fn = this.leafIndex;
+    var sn = this.treeSize - 1;
+    var r = this.leafHash;
+
+    for (var i = 0; i < this.auditPath.length; i++) {
+        if ((fn == sn) || ((fn & 1) == 1)) {
+            r = nodeMerkleTreeHash(this.auditPath[i], r);
+            while (!((fn === 0) || ((fn & 1) == 1))) {
+                fn >>= 1;
+                sn >>= 1;
+            }
+        } else {
+            r = nodeMerkleTreeHash(r, this.auditPath[i]);
+        }
+        fn >>= 1;
+        sn >>= 1;
+    }
+    
+    if (sn != 0) {
+    	throw CONTINUSEC_VERIFICATION_ERROR;
+    }
+    
+    if (r != head.getRootHash()) {
+    	throw CONTINUSEC_VERIFICATION_ERROR;
+    }
+};
+
+
+var RawDataEntryFactory = function () {};
+RawDataEntryFactory.prototype.getFormat = function () { return ""; };
+RawDataEntryFactory.prototype.createFromBytes = function (b) { return new RawDataEntry(b); };
+var RAW_DATA_ENTRY_FACTORY = RawDataEntryFactory();
+
+var JsonEntryFactory = function () {};
+JsonEntryFactory.prototype.getFormat = function () { return ""; };
+JsonEntryFactory.prototype.createFromBytes = function (b) { return new JsonEntry(b); };
+var JSON_ENTRY_FACTORY = JsonEntryFactory();
+
+var RedactedJsonEntryFactory = function () {};
+RedactedJsonEntryFactory.prototype.getFormat = function () { return ""; };
+RedactedJsonEntryFactory.prototype.createFromBytes = function (b) { return new RedactedJsonEntry(b); };
+var REDACTED_JSON_ENTRY_FACTORY = RedactedJsonEntryFactory();
+
+var RawDataEntry = function (data) {
+	this.data = data;
+}
+
+RawDataEntry.prototype.getFormat = function () {
+	return "";
+}
+
+RawDataEntry.prototype.getDataForUpload = function () {
+	return this.data;
+}
+
+RawDataEntry.prototype.getData = function () {
+	return this.data;
+}
+
+RawDataEntry.prototype.getLeafHash = function () {
+	return leafMerkleTreeHash(this.data);
+}
+
+var JsonEntry = function (data) {
+	this.data = data;
+}
+
+JsonEntry.prototype.getFormat = function () {
+	return "/xjson";
+}
+
+JsonEntry.prototype.getDataForUpload = function () {
+	return this.data;
+}
+
+JsonEntry.prototype.getData = function () {
+	return this.data;
+}
+
+JsonEntry.prototype.getLeafHash = function () {
+	return leafMerkleTreeHash(objectHashWithStdRedaction(JSON.parse(this.data)));
+}
+
+var RedactibleJsonEntry = function (data) {
+	this.data = data;
+}
+
+RedactibleJsonEntry.prototype.getFormat = function () {
+	return "/xjson/redactible";
+}
+
+RedactibleJsonEntry.prototype.getDataForUpload = function () {
+	return this.data;
+}
+
+var RedactedJsonEntry = function (data) {
+	this.data = data;
+}
+
+RedactedJsonEntry.prototype.getData = function () {
+	return JSON.stringify(shedRedactionWithStdPrefix(JSON.parse(this.data)));
+}
+
+RedactedJsonEntry.prototype.getLeafHash = function () {
+	return leafMerkleTreeHash(objectHashWithStdRedaction(JSON.parse(this.data)));
+}
+
+var MapTreeState = function (mapHead, treeHeadLogTreeHead) {
+	this.mapHead = mapHead;
+	this.treeHeadLogTreeHead = treeHeadLogTreeHead;
+}
+
+MapTreeState.prototype.getTreeSize = function () {
+	return this.mapHead.getTreeSize();
+}
+
+MapTreeState.prototype.getMapHead = function () {
+	return this.mapHead;
+}
+
+MapTreeState.prototype.getTreeHeadLogTreeHead = function () {
+	return this.treeHeadLogTreeHead;
+}
+
+var MapTreeHead = function (logTreeHead, rootHash) {
+	this.logTreeHead = logTreeHead;
+	this.rootHash = rootHash;
+}
+
+MapTreeHead.prototype.getTreeSize = function () {
+	return this.logTreeHead.getTreeSize();
+}
+
+MapTreeHead.prototype.getMutationLogTreeHead = function () {
+	return this.logTreeHead;
+}
+
+MapTreeHead.prototype.getRootHash = function () {
+	return this.rootHash;
+}
+
+var LogTreeHead = function (treeSize, rootHash) {
+	this.treeSize = treeSize;
+	this.rootHash = rootHash;
+}
+
+LogTreeHead.prototype.getTreeSize = function () {
+	return this.treeSize;
+}
+
+LogTreeHead.prototype.getRootHash = function () {
+	return this.rootHash;
+}
+
+var MapEntryResponse = function (key, value, treeSize, auditPath) {
+    this.key = key;
+    this.value = value;
+    this.treeSize = treeSize;
+    this.auditPath = auditPath;
+};
+
+MapEntryResponse.prototype.getKey = function () {
+	return this.key;
+}
+
+MapEntryResponse.prototype.getValue = function () {
+	return this.value;
+}
+
+MapEntryResponse.prototype.getTreeSize = function () {
+	return this.treeSize;
+}
+
+MapEntryResponse.prototype.getAuditPath = function () {
+	return this.auditPath;
+}
+
+MapEntryResponse.prototype.verify = function (mapTreeHead) {
+	if (this.treeSize != mapTreeHead.getTreeSize()) {
+		throw CONTINUSEC_VERIFICATION_ERROR;
+	}
+    var kp = constructKeyPath(this.key);
+    var t = this.value.getLeafHash();
+    for (var i = kp.length - 1; i >= 0; i--) {
+        var p = proof[i];
+        if (p === null) {
+            p = DEFAULT_LEAF_VALUES[i + 1];
+        }
+        if (kp[i]) {
+            t = nodeMerkleTreeHash(p, t);
+        } else {
+            t = nodeMerkleTreeHash(t, p);
+        }
+    }
+    if (t != mapTreeHead.getRootHash()) {
+    	throw CONTINUSEC_VERIFICATION_ERROR;
+    }
+}
 
 /* this method is private to the implementation and should not be called directly */
 function binaryArrayToString(d) {
@@ -325,98 +784,6 @@ function decodeHex(s) {
 /* this method is private to the implementation and should not be called directly */
 function isPow2(k) {
     return (Math.pow(2, Math.round(Math.log2(k))) == k);
-}
-
-
-function verifyLogConsistencyProof(first, second, firstHash, secondHash, proof) {
-    if ((first < 1) || (first >= second)) {
-        return false;
-    }
-
-    var newProof = [];
-    if (isPow2(first)) {
-        newProof.push(firstHash);
-    }
-    var i;
-    for (i = 0; i < proof.length; i++) {
-        newProof.push(proof[i]);
-    }
-
-    var fn = first - 1;
-    var sn = second - 1;
-    while ((fn & 1) == 1) {
-        fn >>= 1;
-        sn >>= 1;
-    }
-
-    if (newProof.length === 0) {
-        return false;
-    }
-
-    var fr = newProof[0];
-    var sr = newProof[0];
-    for (i = 1; i < newProof.length; i++) {
-        if (sn === 0) {
-            return false;
-        }
-        if (((fn & 1) == 1) || (fn == sn)) {
-            fr = nodeMerkleTreeHash(newProof[i], fr);
-            sr = nodeMerkleTreeHash(newProof[i], sr);
-            while (!((fn === 0) || ((fn & 1) == 1))) {
-                fn >>= 1;
-                sn >>= 1;
-            }
-        } else {
-            sr = nodeMerkleTreeHash(sr, newProof[i]);
-        }
-        fn >>= 1;
-        sn >>= 1;
-    }
-
-    return ((sn === 0) && (firstHash == fr) && (secondHash == sr));
-}
-
-function verifyLogInclusionProof(idx, treeSize, leafHash, rootHash, proof) {
-    if ((idx >= treeSize) || (idx < 0)) {
-        return false;
-    }
-
-    var fn = idx;
-    var sn = treeSize - 1;
-    var r = leafHash;
-
-    for (var i = 0; i < proof.length; i++) {
-        if ((fn == sn) || ((fn & 1) == 1)) {
-            r = nodeMerkleTreeHash(proof[i], r);
-            while (!((fn === 0) || ((fn & 1) == 1))) {
-                fn >>= 1;
-                sn >>= 1;
-            }
-        } else {
-            r = nodeMerkleTreeHash(r, proof[i]);
-        }
-        fn >>= 1;
-        sn >>= 1;
-    }
-
-    return ((sn === 0) && (r == rootHash));
-}
-
-function verifyMapInclusionProof(key, value, proof, rootHash) {
-    var kp = constructKeyPath(key);
-    var t = leafMerkleTreeHash(value);
-    for (var i = kp.length - 1; i >= 0; i--) {
-        var p = proof[i];
-        if (p === null) {
-            p = DEFAULT_LEAF_VALUES[i + 1];
-        }
-        if (kp[i]) {
-            t = nodeMerkleTreeHash(p, t);
-        } else {
-            t = nodeMerkleTreeHash(t, p);
-        }
-    }
-    return (t == rootHash);
 }
 
 function constructKeyPath(key) {
@@ -531,5 +898,43 @@ function objectHashWithRedaction(o, prefix) {
 		}
 		kh.sort();
 		return sha256("d"+kh.join(""));
+	}
+}
+
+function shedRedactableWithStdRedaction(o) {
+	return shedRedactable(o, REDACTED_PREFIX);
+}
+
+function shedRedactable(o, prefix) {
+	if (o == null) {
+		return null;
+	} else if (o instanceof Array) {
+		var rv = [];
+		for (var i = 0; i < o.length; i++) {
+			rv.push(shedRedactable(o[i], prefix));
+		}
+		return rv;
+	} else if ((typeof o) == "object") {
+		var rv = {};
+		for (var k in o) {
+			var v = o[k];
+			if (v instanceof Array) {
+				if (v.length == 2) {
+					rv[k] = shedRedactable(v[1], prefix);
+				} else {
+					return undefined;
+				}
+			} else if ((typeof v) == "string") {
+				if (v.startsWith(prefix)) {
+					// good, do nothing
+				} else {
+					return undefined;
+				}
+			} else {
+				return undefined;
+			}
+		}
+	} else {
+		return o;
 	}
 }
