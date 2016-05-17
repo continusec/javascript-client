@@ -1,4 +1,6 @@
 
+var testGlobal = {};
+
 function testContinusec(idx) {
 	switch(idx) {
 	case 0:
@@ -53,134 +55,246 @@ function testContinusec(idx) {
 			throw reason;
 		});
 		break;
+	case 4: 
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+		log.add(new RawDataEntry("foo"), function () {
+            testContinusec(idx+1);
+		}, function (reason) {
+		    throw reason;
+		});
+		break;
+	case 5: 
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+		log.add(new JsonEntry("{\"name\":\"adam\",\"ssn\":123.45}"), function () {
+            testContinusec(idx+1);
+		}, function (reason) {
+		    throw reason;
+		});
+		break;
+	case 6: 
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+		log.add(new RedactableJsonEntry("{\"name\":\"adam\",\"ssn\":123.45}"), function () {
+            testContinusec(idx+1);
+		}, function (reason) {
+		    throw reason;
+		});
+		break;
+	case 7: 
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+		log.add(new RawDataEntry("foo"), function (aer) {
+		    log.blockUntilPresent(aer, function (head) {
+                testContinusec(idx+1);
+		    }, function (reason) {
+		        throw reason;
+		    });
+		}, function (reason) {
+		    throw reason;
+		});
+		break;
+	case 8: 
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+        log.getTreeHead(0, function (head) {
+            if (head.getTreeSize() != 3) {
+                throw "wrong";
+            }
+            testGlobal.head = head;
+            testContinusec(idx+1);
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 9: 
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+		
+		if (testGlobal.idx == undefined) {
+		    testGlobal.idx = 0
+		}
+		
+		if (testGlobal.idx == 100) {
+            testContinusec(idx+1);
+		} else {
+            log.add(new RawDataEntry("foo-" + testGlobal.idx), function () {
+                testGlobal.idx += 1;
+                testContinusec(idx);
+            }, function (reason) {
+                throw reason;
+            });
+        }
+		break;
+	case 10: 
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+        log.getVerifiedLatestTreeHead(testGlobal.head, function (head) {
+            if (head.getTreeSize() != 103) {
+                throw "wrong";
+            }
+            testGlobal.head103 = head;
+            testContinusec(idx+1);
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 11: 
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+		log.verifyInclusion(testGlobal.head103, new RawDataEntry("foo27"), function () {
+		    throw "wrong";
+		}, function (reason) {
+            testContinusec(idx+1);
+		});
+		break;
+	case 12: 
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+		log.getInclusionProof(testGlobal.head103.getTreeSize(), new RawDataEntry("foo-27"), function (proof) {
+		    try {
+		        proof.verify(testGlobal.head);
+		        throw "wrong";
+		    } catch (err) {
+		        if (err == CONTINUSEC_VERIFICATION_ERROR) {
+                    testContinusec(idx+1);
+		        } else {
+		            throw err;
+		        }
+		    }
+		}, function (reason) {
+            throw reason;
+		});
+		break;
+	case 13: 
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+        log.getTreeHead(50, function (head) {
+            if (head.getTreeSize() != 50) {
+                throw "wrong";
+            }
+            testGlobal.head50 = head;
+            testContinusec(idx+1);
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 14: 
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+        log.getConsistencyProof(50, 103, function (proof) {
+            proof.verify(testGlobal.head50, testGlobal.head103);
+            try {
+                proof.verify(testGlobal.head, testGlobal.head103);
+                throw "Wrong";
+		    } catch (err) {
+		        if (err == CONTINUSEC_VERIFICATION_ERROR) {
+                    testContinusec(idx+1);
+		        } else {
+		            throw err;
+		        }
+		    }
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 15: 
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+        log.getInclusionProof(10, new RawDataEntry("foo"), function (proof) {
+            log.verifySuppliedInclusionProof(testGlobal.head103, proof, function (head) {
+                if (head.getTreeSize() != 10) {
+                    throw "error";
+                } else {
+                    testContinusec(idx+1);
+                }
+            }, function (reason) {
+                throw reason;
+            });
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 16: 
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+		var count = 0;
+        log.verifyEntries(null, testGlobal.head103, RAW_DATA_ENTRY_FACTORY, function (idx, entry) {
+            entry.getData();
+            count += 1;
+        }, function () {
+            if (count != 103) {
+                throw "wrong";
+            }
+            testContinusec(idx+1);
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 17: 
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+		log.getTreeHead(1, function (head) {
+		    testGlobal.head1 = head;
+            var count = 0;
+            log.verifyEntries(head, testGlobal.head103, JSON_ENTRY_FACTORY, function (idx, entry) {
+                entry.getData();
+                count += 1;
+            }, function () {
+                throw "should not succeed";
+            }, function (reason) {
+                if (reason != CONTINUSEC_NOT_ALL_ENTRIES_RETURNED_ERROR) {
+                    throw reason;
+                }
+                testContinusec(idx+1);
+            });
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 18: 
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+		log.getTreeHead(3, function (head3) {
+            var count = 0;
+            log.verifyEntries(testGlobal.head1, head3, JSON_ENTRY_FACTORY, function (idx, entry) {
+                entry.getData();
+                count += 1;
+            }, function () {
+                if (count != 2) {
+                    throw "wrong";
+                }
+                testContinusec(idx+1);
+            }, function (reason) {
+                throw reason;
+            });
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 19: 
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+        var count = 0;
+        log.verifyEntries(testGlobal.head50, testGlobal.head103, RAW_DATA_ENTRY_FACTORY, function (idx, entry) {
+            entry.getData();
+            count += 1;
+        }, function () {
+            if (count != 53) {
+                throw "wrong";
+            }
+            testContinusec(idx+1);
+        }, function (reason) {
+            throw reason;
+        });
+		break;
 	}
 }
 
 /*
-	client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
-	log = client.getVerifiableLog("newtestlog");
-	log.create();
-
-	try {
-		log.create();
-		throw new RuntimeException();
-	} catch (ObjectConflictException e) {
-		// good
-	}
-
-	log.add(new RawDataEntry("foo".getBytes()));
-	log.add(new JsonEntry("{\"name\":\"adam\",\"ssn\":123.45}".getBytes()));
-	log.add(new RedactableJsonEntry("{\"name\":\"adam\",\"ssn\":123.45}".getBytes()));
-
-	AddEntryResponse aer = log.add(new RawDataEntry("foo".getBytes()));
-	log.blockUntilPresent(aer);
-
-	LogTreeHead head = log.getTreeHead(client.HEAD);
-	if (head.getTreeSize() != 3) {
-		throw new RuntimeException();
-	}
-
-	for (int i = 0; i < 100; i++) {
-		log.add(new RawDataEntry(("foo-"+i).getBytes()));
-	}
-
-	LogTreeHead head103 = log.getVerifiedLatestTreeHead(head);
-	if (head103.getTreeSize() != 103) {
-		throw new RuntimeException();
-	}
-
-	try {
-		log.verifyInclusion(head103, new RawDataEntry(("foo27").getBytes()));
-		throw new RuntimeException();
-	} catch (ObjectNotFoundException e) {
-		// good
-	}
-
-	LogInclusionProof inclProof = log.getInclusionProof(head103.getTreeSize(), new RawDataEntry(("foo-27").getBytes()));
-	inclProof.verify(head103);
-
-	try {
-		inclProof.verify(head);
-		throw new RuntimeException();
-	} catch (VerificationFailedException e) {
-		// good
-	}
-
-	LogTreeHead head50 = log.getTreeHead(50);
-	if (head50.getTreeSize() != 50) {
-		throw new RuntimeException();
-	}
-
-	LogConsistencyProof cons = log.getConsistencyProof(head50.getTreeSize(), head103.getTreeSize());
-	cons.verify(head50, head103);
-
-	try {
-		cons.verify(head, head103);
-		throw new RuntimeException();
-	} catch (VerificationFailedException e) {
-		// good
-	}
-
-	inclProof = log.getInclusionProof(10, new RawDataEntry("foo".getBytes()));
-
-	LogTreeHead h10 = log.verifySuppliedInclusionProof(head103, inclProof);
-	if (h10.getTreeSize() != 10) {
-		throw new RuntimeException();
-	}
 
 
-	final int[] count = new int[1];
-
-	count[0] = 0;
-	log.verifyEntries(LogTreeHead.ZeroLogTreeHead, head103, RawDataEntryFactory.getInstance(), new LogAuditor() {
-		public void auditLogEntry(int idx, VerifiableEntry e) throws ContinusecException {
-			e.getData();
-			count[0]++;
-		}
-	});
-	if (count[0] != 103) {
-		throw new RuntimeException();
-	}
-
-	LogTreeHead head1 = log.getTreeHead(1);
-	count[0] = 0;
-	try {
-		log.verifyEntries(head1, head103, JsonEntryFactory.getInstance(), new LogAuditor() {
-			public void auditLogEntry(int idx, VerifiableEntry e) throws ContinusecException {
-				e.getData();
-				count[0]++;
-			}
-		});
-		throw new RuntimeException();
-	} catch (NotAllEntriesReturnedException e) {
-		// good
-	}
-	if (count[0] != 0) {
-		throw new RuntimeException();
-	}
-
-	LogTreeHead head3 = log.getTreeHead(3);
-	count[0] = 0;
-	log.verifyEntries(head1, head3, JsonEntryFactory.getInstance(), new LogAuditor() {
-		public void auditLogEntry(int idx, VerifiableEntry e) throws ContinusecException {
-			e.getData();
-			count[0]++;
-		}
-	});
-	if (count[0] != 2) {
-		throw new RuntimeException();
-	}
-
-	count[0] = 0;
-	log.verifyEntries(head50, head103, RawDataEntryFactory.getInstance(), new LogAuditor() {
-		public void auditLogEntry(int idx, VerifiableEntry e) throws ContinusecException {
-			e.getData();
-			count[0]++;
-		}
-	});
-	if (count[0] != 53) {
-		throw new RuntimeException();
-	}
 
 	JsonEntry je = new JsonEntry("{	\"ssn\":  123.4500 ,   \"name\" :  \"adam\"}".getBytes());
 	log.verifyInclusion(head103, je);

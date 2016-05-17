@@ -97,6 +97,7 @@ var CONTINUSEC_NOT_FOUND_ERROR = 4;
 var CONTINUSEC_INTERNAL_ERROR = 5;
 var CONTINUSEC_OBJECT_CONFLICT_ERROR = 6;
 var CONTINUSEC_VERIFICATION_ERROR = 7;
+var CONTINUSEC_NOT_ALL_ENTRIES_RETURNED_ERROR = 8;
 
 var CONTINUSEC_HEAD = 0;
 
@@ -149,7 +150,6 @@ ContinusecClient.prototype.getVerifiableLog = function (name) {
 ContinusecClient.prototype.makeRequest = function (method, path, data, success, failure) {
     var req = new XMLHttpRequest();
     req.onload = function (evt) {
-        console.log(evt);
         switch (req.status) {
         case 200:
             success(binaryArrayToString(new Uint8Array(req.response)), req);
@@ -360,6 +360,74 @@ VerifiableLog.prototype.getEntries = function (startIdx, endIdx, factory, each, 
     });
 };
 
+VerifiableLog.prototype.verifyEntries = function (prev, head, factory, each, success, failure) {
+    if ((prev == null) || (prev.getTreeSize() < head.getTreeSize())) {
+        var log = this;
+        var stack = [];
+        if ((prev != null) && (prev.getTreeSize() > 0)) {
+            this.getInclusionProofByIndex(prev.getTreeSize()+1, prev.getTreeSize(), function (proof) {
+                if (prev.getTreeSize() == 50) {
+                    console.log(50);
+                }
+                var firstHash = null;
+                for (var i = 0; i < proof.getAuditPath().length; i++) {
+                    if (firstHash == null) {
+                        firstHash = proof.getAuditPath()[i];
+                    } else {
+                        firstHash = nodeMerkleTreeHash(proof.getAuditPath()[i], firstHash);
+                    }
+                }
+                if (firstHash != prev.getRootHash()) {
+                    failure(CONTINUSEC_VERIFICATION_ERROR);
+                } else {
+                    for (var i = 0; i < proof.getAuditPath().length; i++) {
+                        stack.push(proof.getAuditPath()[i]);
+                    }
+                    secondStageVerifyEntries(stack, log, prev, head, factory, each, success, failure);
+                }
+            }, failure);
+        } else {
+            secondStageVerifyEntries(stack, log, prev, head, factory, each, success, failure);
+        }
+    } else {
+        success();
+    }
+};
+
+function secondStageVerifyEntries(stack, log, prev, head, factory, each, success, failure) {
+    var parIdx = 0;
+    if (prev != null) {
+        parIdx = prev.getTreeSize();
+    }
+    log.getEntries(parIdx, head.getTreeSize(), factory, function (idx, entry) {
+        each(idx, entry);
+        
+        stack.push(entry.getLeafHash());
+        for (var z = idx; (z & 1) == 1; z >>= 1) {
+            var right = stack.pop();
+            var left = stack.pop();
+            stack.push(nodeMerkleTreeHash(left, right));
+        }
+        
+        parIdx += 1;
+    }, function () {
+        if (parIdx != head.getTreeSize()) {
+            failure(CONTINUSEC_NOT_ALL_ENTRIES_RETURNED_ERROR);
+        } else {
+            var headHash = stack.pop();
+            while (stack.length > 0) {
+                headHash = nodeMerkleTreeHash(stack.pop(), headHash);
+            }
+            
+            if (headHash != head.getRootHash()) {
+                failure(CONTINUSEC_VERIFICATION_ERROR);
+            } else {
+                success();
+            }
+        }
+    }, failure);
+}
+
 /**
  * Success is called with LogInclusionProof.
  */
@@ -372,6 +440,22 @@ VerifiableLog.prototype.getInclusionProof = function (treeSize, leaf, success, f
             auditPath.push(atob(obj.proof[i]));
         }
         success(new LogInclusionProof(lh, Number(obj.tree_size), Number(obj.leaf_index), auditPath));
+    }, function (reason) {
+        failure(reason);
+    });
+};
+
+/**
+ * Success is called with LogInclusionProof.
+ */
+VerifiableLog.prototype.getInclusionProofByIndex = function (treeSize, leafIndex, success, failure) {
+    this.client.makeRequest("GET", this.path + "/tree/" + treeSize + "/inclusion/" + leafIndex, null, function (data, req) {
+        var obj = JSON.parse(data);
+        var auditPath = [];
+        for (var i = 0; i < obj.proof.length; i++) {
+            auditPath.push(atob(obj.proof[i]));
+        }
+        success(new LogInclusionProof(null, Number(obj.tree_size), Number(obj.leaf_index), auditPath));
     }, function (reason) {
         failure(reason);
     });
@@ -398,7 +482,7 @@ VerifiableLog.prototype.verifyInclusion = function (head, leaf, success, failure
  * Success is called with LogConsistencyProof
  */
 VerifiableLog.prototype.getConsistencyProof = function (firstSize, secondSize, success, failure) {
-    this.client.makeRequest("GET", this.path + "/tree/" + second + "/consistency/" + first, null, function (data, req) {
+    this.client.makeRequest("GET", this.path + "/tree/" + secondSize + "/consistency/" + firstSize, null, function (data, req) {
         var obj = JSON.parse(data);
         var auditPath = [];
         for (var i = 0; i < obj.proof.length; i++) {
@@ -451,6 +535,83 @@ VerifiableLog.prototype.verifyConsistency = function (a, b, success, failure) {
 	});
 }
 
+/**
+ * Success is passed a LogTreeHead.
+ */
+VerifiableLog.prototype.getVerifiedLatestTreeHead = function (prev, success, failure) {
+    this.getVerifiedTreeHead(prev, 0, function (head) {
+        if (prev != null) {
+            if (head.getTreeSize() <= prev.getTreeSize()) {
+                head = prev;
+            }
+        }
+        success(head);
+    }, failure);
+}
+
+/**
+ * Success is passed a LogTreeHead.
+ */
+VerifiableLog.prototype.getVerifiedTreeHead = function (prev, treeSize, success, failure) {
+    if ((treeSize != 0) && (prev != null) && (prev.getTreeSize() == treeSize)) {
+        success(prev);
+    } else {
+        var log = this;
+        this.getTreeHead(treeSize, function (head) {
+            log.verifyConsistency(prev, head, function () {
+                success(head);
+            }, failure);
+        }, failure);
+    }
+}
+
+/**
+ * Success is passed a LogTreeHead.
+ */
+VerifiableLog.prototype.verifySuppliedInclusionProof = function (prev, proof, success, failure) {
+    this.getVerifiedTreeHead(prev, proof.getTreeSize(), function (head) {
+        try {
+            proof.verify(head);
+            success(head);
+        } catch (err) {
+            failure(err);
+        }
+    }, failure);
+};
+
+
+/**
+ * Success is passed LogTreeHead.
+ */
+VerifiableLog.prototype.blockUntilPresent = function (leaf, success, failure) {
+    doBlockRound(this, -1, 0, leaf, success, failure);
+}
+
+function doBlockRound(log, lastHead, secsToSleep, leaf, success, failure) {
+    log.getTreeHead(0, function (lth) {
+        if (lth.getTreeSize() > lastHead) {
+            log.verifyInclusion(lth, leaf, function () {
+                success(lth);   
+            }, function (reason) {
+                if (reason == CONTINUSEC_INVALID_RANGE_ERROR) {
+                    secsToSleep = 1;
+                    setTimeout(function () { doBlockRound(log, lth.getTreeSize(), secsToSleep, leaf, success, failure); }, secsToSleep * 1000);
+                } else {
+                    failure(reason);
+                }
+            });
+        } else {
+            secsToSleep *= 2
+            setTimeout(function () { doBlockRound(log, lastHead, secsToSleep, leaf, success, failure); }, secsToSleep * 1000);
+        }
+    }, failure);
+}
+
+
+var AddEntryResponse = function (mtlHash) {
+    this.mtlHash = mtlHash;
+}
+AddEntryResponse.prototype.getLeafHash = function () { return this.mtlHash; };
 
 var LogConsistencyProof = function (firstSize, secondSize, auditPath) {
 	this.firstSize = firstSize;
@@ -582,17 +743,17 @@ LogInclusionProof.prototype.verify = function (head) {
 var RawDataEntryFactory = function () {};
 RawDataEntryFactory.prototype.getFormat = function () { return ""; };
 RawDataEntryFactory.prototype.createFromBytes = function (b) { return new RawDataEntry(b); };
-var RAW_DATA_ENTRY_FACTORY = RawDataEntryFactory();
+var RAW_DATA_ENTRY_FACTORY = new RawDataEntryFactory();
 
 var JsonEntryFactory = function () {};
-JsonEntryFactory.prototype.getFormat = function () { return ""; };
+JsonEntryFactory.prototype.getFormat = function () { return "/xjson"; };
 JsonEntryFactory.prototype.createFromBytes = function (b) { return new JsonEntry(b); };
-var JSON_ENTRY_FACTORY = JsonEntryFactory();
+var JSON_ENTRY_FACTORY = new JsonEntryFactory();
 
 var RedactedJsonEntryFactory = function () {};
-RedactedJsonEntryFactory.prototype.getFormat = function () { return ""; };
+RedactedJsonEntryFactory.prototype.getFormat = function () { return "/xjson"; };
 RedactedJsonEntryFactory.prototype.createFromBytes = function (b) { return new RedactedJsonEntry(b); };
-var REDACTED_JSON_ENTRY_FACTORY = RedactedJsonEntryFactory();
+var REDACTED_JSON_ENTRY_FACTORY = new RedactedJsonEntryFactory();
 
 var RawDataEntry = function (data) {
 	this.data = data;
@@ -634,15 +795,15 @@ JsonEntry.prototype.getLeafHash = function () {
 	return leafMerkleTreeHash(objectHashWithStdRedaction(JSON.parse(this.data)));
 }
 
-var RedactibleJsonEntry = function (data) {
+var RedactableJsonEntry = function (data) {
 	this.data = data;
 }
 
-RedactibleJsonEntry.prototype.getFormat = function () {
-	return "/xjson/redactible";
+RedactableJsonEntry.prototype.getFormat = function () {
+	return "/xjson/redactable";
 }
 
-RedactibleJsonEntry.prototype.getDataForUpload = function () {
+RedactableJsonEntry.prototype.getDataForUpload = function () {
 	return this.data;
 }
 
