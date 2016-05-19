@@ -40,85 +40,64 @@ b=a[0];g=a[1];d=a[2];f=a[3];e=a[4];h=a[5];n=a[6];l=a[7];for(p=0;p<r;p+=1)16>p?(k
    limitations under the License.
 */
 
-/*
-    This library is modelled after the golang client, with return values replaced
-    with success/failure callback pairs.
+/**
+ * Indicates network error.
+ */
+var CONTINUSEC_NETWORK_ERROR = "CONTINUSEC_NETWORK_ERROR";
 
-    See the golang client guide here for best documentation:
+/**
+ * Indicates invalid size or range in the request, e.g. tree size too large or small, or entry not found.
+ */
+var CONTINUSEC_INVALID_RANGE_ERROR = "CONTINUSEC_INVALID_RANGE_ERROR";
 
-    xxxxxx
+/**
+ * Indicates that either the wrong API Key is being used, or the account is suspended for other reasons (check billing status in console).
+ */
+var CONTINUSEC_UNAUTHORIZED_ERROR = "CONTINUSEC_UNAUTHORIZED_ERROR";
 
-    var c = new ContinusecClient("1234...5678", "secretkey");
-    var m = c.verifiableMap("testmap");
+/**
+ * Indicates the object cannot be found.
+ */
+var CONTINUSEC_NOT_FOUND_ERROR = "CONTINUSEC_NOT_FOUND_ERROR";
 
-    // First time only:
-    m.create(function() {
-        m.setValue("foo", "bar");
-        m.setValue("foo1", "bar2");
-        m.setValue("foo2", "bar2");
-        m.setValue("foo3", "bar2");
-    });
+/**
+ * Indicates internal error that occurred on the server.
+ */
+var CONTINUSEC_INTERNAL_ERROR = "CONTINUSEC_INTERNAL_ERROR";
 
-    // Later, get tree size, get value and verify inclusion
-    m.treeHash(CONTINUSEC_HEAD, function(mapSize, rootHash) {
-        m.getValue("foo1", mapSize, function(value, proof) {
-            console.log(verifyMapInclusionProof("foo1", value, proof, rootHash));
-        });
-    });
+/**
+ * Indicates that object being modified already exists.
+ */
+var CONTINUSEC_OBJECT_CONFLICT_ERROR = "CONTINUSEC_OBJECT_CONFLICT_ERROR";
 
-    var l = c.verifiableLog("testlog");
+/**
+ * Indicates the verification of a proof has failed.
+ */
+var CONTINUSEC_VERIFICATION_ERROR = "CONTINUSEC_VERIFICATION_ERROR";
 
-    // First time only:
-    l.create(function() {
-        l.add("foo");
-        l.add("bar");
-    });
+/**
+ * Indicates that not all entries were returned. Typically due to requesting Json, but not
+ * storing as such.
+ */
+var CONTINUSEC_NOT_ALL_ENTRIES_RETURNED_ERROR = "CONTINUSEC_NOT_ALL_ENTRIES_RETURNED_ERROR";
 
-    l.treeHash(1, function(firstSize, firstHash) {
-        l.treeHash(CONTINUSEC_HEAD, function(secondSize, secondHash) {
-            l.consistencyProof(firstSize, secondSize, function(proof) {
-                console.log(verifyLogConsistencyProof(firstSize, secondSize, firstHash, secondHash, proof));
-            });
-        });
-    });
-
-    l.treeHash(CONTINUSEC_HEAD, function(treeSize, rootHash) {
-        l.inclusionProof(treeSize, leafMerkleTreeHash("foo"), function(idx, proof) {
-            console.log(verifyLogInclusionProof(idx, treeSize, leafMerkleTreeHash("foo"), rootHash, proof));
-        });
-    });
-*/
-
-
-var CONTINUSEC_NETWORK_ERROR = 1;
-var CONTINUSEC_INVALID_RANGE_ERROR = 2;
-var CONTINUSEC_UNAUTHORIZED_ERROR = 3;
-var CONTINUSEC_NOT_FOUND_ERROR = 4;
-var CONTINUSEC_INTERNAL_ERROR = 5;
-var CONTINUSEC_OBJECT_CONFLICT_ERROR = 6;
-var CONTINUSEC_VERIFICATION_ERROR = 7;
-var CONTINUSEC_NOT_ALL_ENTRIES_RETURNED_ERROR = 8;
-
+/**
+ * HEAD can be substituted for tree size in requests for fetch tree hashes. Specifying
+ * this values means to fetch the latest tree hash present.
+ */
 var CONTINUSEC_HEAD = 0;
 
 /**
- * Private
- */
-var VerifiableMap = function (client, path) {
-    this.client = client;
-    this.path = path;
-};
-
-/**
- * Private
- */
-var VerifiableLog = function (client, path) {
-    this.client = client;
-    this.path = path;
-};
-
-/**
- * baseURL is optional, and normally left empty (defaults to https://api.continusec.com).
+ * Create a ContinusecClient for a given account with specified API Key.
+ * baseURL is optional and normally only used for unit tests of the ContinusecClient API
+ * that may wish to use a custom URL to send API requests to.
+ *
+ * @param {string} account the account number, found on the "Settings" tab in the console.
+ * @param {string} apiKey the API Key, found on the "API Keys" tab in the console.
+ * @param {string} baseURL the base URL to send API requests to.
+ *
+ * @constructor
+ * @classdesc Main entry point for interacting with Continusec's Verifiable Data Structure APIs.
  */
 var ContinusecClient = function (account, apiKey, baseURL) {
     this.account = account;
@@ -131,21 +110,27 @@ var ContinusecClient = function (account, apiKey, baseURL) {
 };
 
 /**
- * Returns pointer to verifiable map
+ * Return a pointer to a verifiable map that belongs to this account.
+ *
+ * @param {string} name name of the map to access.
+ * @return {VerifiableMap} an object that allows manipulation of the specified map.
  */
 ContinusecClient.prototype.getVerifiableMap = function (name) {
     return new VerifiableMap(this, "/map/" + name);
 };
 
 /**
- * Returns pointer to verifiable log
+ * Return a pointer to a verifiable log that belongs to this account.
+ *
+ * @param {string} name name of the log to access.
+ * @return {VerifiableLog} an object that allows manipulation of the specified log.
  */
 ContinusecClient.prototype.getVerifiableLog = function (name) {
     return new VerifiableLog(this, "/log/" + name);
 };
 
 /**
- * Private
+ * @private
  */
 ContinusecClient.prototype.makeRequest = function (method, path, data, success, failure) {
     var req = new XMLHttpRequest();
@@ -180,22 +165,113 @@ ContinusecClient.prototype.makeRequest = function (method, path, data, success, 
 };
 
 /**
- * Returns pointer to mutation log (VerifiableLog).
+ * Private constructor. Use {@link ContinusecClient#getVerifiableMap(String)} to instantiate.
+ * @constructor
+ * @classdesc Class to manage interactions with a Verifiable Map. Use {@link ContinusecClient#getVerifiableMap(String)} to instantiate.
+ */
+var VerifiableMap = function (client, path) {
+    this.client = client;
+    this.path = path;
+};
+
+/**
+ * Get a pointer to the mutation log that underlies this verifiable map. Since the mutation log
+ * is managed by the map, it cannot be directly modified, however all read operations are supported.
+ * Note that mutations themselves are stored as {@link JsonEntry} format, so {@link JsonEntryFactory#getInstance()} should
+ * be used for entry retrieval.
+ * @return {VerifiableLog} the mutation log.
  */
 VerifiableMap.prototype.getMutationLog = function () {
     return new VerifiableLog(this.client, this.path + "/log/mutation");
 };
 
 /**
- * Returns pointer to tree head log (VerifiableLog).
+ * Get a pointer to the tree head log that contains all map root hashes produced by this map. Since the tree head log
+ * is managed by the map, it cannot be directly modified, however all read operations are supported.
+ * Note that tree heaads themselves are stored as {@link JsonEntry} format, so {@link JsonEntryFactory#getInstance()} should
+ * be used for entry retrieval.
+ * @return {VerifiableLog} the tree head log.
  */
 VerifiableMap.prototype.getTreeHeadLog = function () {
     return new VerifiableLog(this.client, this.path + "/log/treehead");
 };
 
+
+
 /**
- * No value is passed to success.
- * Reason is passed to failure.
+ * Failure callback is called upon error. Typically the reason passed is one of the
+ * error constants defined in this module.
+ *
+ * @callback failureCallback
+ * @param {string} reason
+ */
+
+/**
+ * Success callback is called upon success with no arguments passed to it.
+ * @callback emptySuccessCallback
+ */
+
+/**
+ * Success callback is called upon success with mapEntry passed to it.
+ * @param {MapEntryResponse} mapEntry
+ * @callback mapEntrySuccessCallback
+ */
+
+/**
+ * Success callback is called upon success with an entry passed to it.
+ * @param {VerifiableEntry} entry, ie once of RawDataEntry, JsonEntry, RedactedJsonEntry
+ * @callback verifiableEntrySuccessCallback
+ */
+
+/**
+ * Success callback is called upon success with an index and entry passed to it.
+ * @param {int} idx the index
+ * @param {VerifiableEntry} entry the value, of type RawDataEntry, JsonEntry or RedactedJsonEntry
+ * @callback verifiableEntryIndexSuccessCallback
+ */
+
+/**
+ * Success callback is called upon success with an entry passed to it.
+ * @param {AddEntryResponse} entry
+ * @callback addEntryResponseCallback
+ */
+
+/**
+ * Success callback is called upon success with a MapTreeHead passed to it.
+ * @param {MapTreeHead} entry
+ * @callback mapTreeHeadSuccessCallback
+ */
+
+/**
+ * Success callback is called upon success with a LogTreeHead passed to it.
+ * @param {LogTreeHead} entry
+ * @callback logTreeHeadSuccessCallback
+ */
+
+/**
+ * Success callback is called upon success with a MapTreeState passed to it.
+ * @param {MapTreeState} entry
+ * @callback mapTreeStateSuccessCallback
+ */
+
+/**
+ * Success callback is called upon success with a LogInclusionProof passed to it.
+ * @param {LogInclusionProof} entry
+ * @callback logInclusionProofSuccessCallback
+ */
+
+/**
+ * Success callback is called upon success with a LogConsistencyProof passed to it.
+ * @param {LogConsistencyProof} entry
+ * @callback logConsistencyProofSuccessCallback
+ */
+
+
+/**
+ * Send API call to create this map. This should only be called once, and subsequent
+ * calls will cause an exception to be generated.
+ * @param {emptySuccessCallback} success called on success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableMap.prototype.create = function (success, failure) {
     this.client.makeRequest("PUT", this.path, null, function (data, req) {
@@ -206,7 +282,12 @@ VerifiableMap.prototype.create = function (success, failure) {
 };
 
 /**
- * MapEntryResponse is passed to success.
+ * For a given key, return the value and inclusion proof for the given treeSize.
+ * @param {string} key the key in the map.
+ * @param {int} treeSize the tree size.
+ * @param {VerifiableEntryFactory} factory the factory that should be used to instantiate the VerifiableEntry. Typically one of RawDataEntryFactory, JsonEntryFactory, RedactedJsonEntryFactory.
+ * @param {mapEntrySuccessCallback} success called on success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableMap.prototype.getValue = function (key, treeSize, factory, success, failure) {
     this.client.makeRequest("GET", this.path + "/tree/" + treeSize + "/key/h/" + hexString(key) + factory.getFormat(), null, function (data, req) {
@@ -239,7 +320,12 @@ VerifiableMap.prototype.getValue = function (key, treeSize, factory, success, fa
 };
 
 /**
- * VerifiableEntry is passed to success.
+ * For a given key, retrieve the value and inclusion proof, verify the proof, then return the value.
+ * @param {string} key the key in the map.
+ * @param {MapStateHead} mapState a map tree state as previously returned by {@link #getVerifiedMapState(MapTreeState,int)}
+ * @param {VerifiableEntryFactory} factory the factory that should be used to instantiate the VerifiableEntry. Typically one of RawDataEntryFactory, JsonEntryFactory, RedactedJsonEntryFactory.
+ * @param {verifiableEntrySuccessCallback} success called upon success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableMap.prototype.getVerifiedValue = function (key, mapState, factory, success, failure) {
 	this.getValue(key, mapState.getTreeSize(), factory, function(mapResp) {
@@ -256,8 +342,12 @@ VerifiableMap.prototype.getVerifiedValue = function (key, mapState, factory, suc
 };
 
 /**
- * Value is VerifiableEntry.
- * AddEntryResponse is passed to success.
+ * Set the value for a given key in the map. Calling this has the effect of adding a mutation to the
+ * mutation log for the map, which then reflects in the root hash for the map. This occurs asynchronously.
+ * @param {string} key the key to set.
+ * @param {value} value the entry to set to key to. Typically one of {@link RawDataEntry}, {@link JsonEntry} or {@link RedactableJsonEntry}.
+ * @param {addEntryResponseCallback} success called upon success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableMap.prototype.setValue = function (key, value, success, failure) {
     this.client.makeRequest("PUT", this.path + "/key/h/" + hexString(key) + value.getFormat(), value.getDataForUpload(), function (data, req) {
@@ -269,8 +359,11 @@ VerifiableMap.prototype.setValue = function (key, value, success, failure) {
 };
 
 /**
- * Value is VerifiableEntry.
- * AddEntryResponse is passed to success.
+ * Delete the value for a given key from the map. Calling this has the effect of adding a mutation to the
+ * mutation log for the map, which then reflects in the root hash for the map. This occurs asynchronously.
+ * @param {string} key the key to delete.
+ * @param {addEntryResponseCallback} success called upon success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableMap.prototype.deleteValue = function (key, success, failure) {
     this.client.makeRequest("DELETE", this.path + "/key/h/" + hexString(key), null, function (data, req) {
@@ -280,10 +373,14 @@ VerifiableMap.prototype.deleteValue = function (key, success, failure) {
         failure(reason);
     });
 };
-/**
 
 /**
- * MapTreeHead is passed to success.
+ * Get the tree hash for given tree size.
+ *
+ * @param {int} treeSize the tree size to retrieve the hash for. Pass HEAD (0) to get the
+ * latest tree size.
+ * @param {mapTreeHeadSuccessCallback} success called upon success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableMap.prototype.getTreeHead = function (treeSize, success, failure) {
     this.client.makeRequest("GET", this.path + "/tree/" + treeSize, null, function (data, req) {
@@ -295,7 +392,13 @@ VerifiableMap.prototype.getTreeHead = function (treeSize, success, failure) {
 };
 
 /**
- * Success is passed LogTreeHead.
+ * Block until the map has caught up to a certain size.
+ * This polls getTreeHead(int) until
+ * such time as a new tree hash is produced that is of at least this size.
+ * This is intended for test use.
+ * @param {int} treeSize the tree size that we should wait for.
+ * @param {mapTreeHeadSuccessCallback} success called upon success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableMap.prototype.blockUntilSize = function (treeSize, success, failure) {
     doMapBlockRound(this, -1, 0, treeSize, success, failure);
@@ -318,7 +421,12 @@ function doMapBlockRound(log, lastHead, secsToSleep, treeSize, success, failure)
 }
 
 /**
- * Success is passed a MapStateHead
+ * getVerifiedLatestMapState fetches the latest MapTreeState, verifies it is consistent with,
+ * and newer than, any previously passed state.
+ *
+ * @param {MapTreeState} prev previously held MapTreeState, may be null to skip consistency checks.
+ * @param {mapTreeStateSuccessCallback} success called upon success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableMap.prototype.getVerifiedLatestMapState = function (prev, success, failure) {
     this.getVerifiedMapState(prev, 0, function (head) {
@@ -331,7 +439,18 @@ VerifiableMap.prototype.getVerifiedLatestMapState = function (prev, success, fai
 }
 
 /**
- * Success is passed a MapStateHead
+ * getVerifiedMapState returns a wrapper for the MapTreeHead for a given tree size, along with
+ * a LogTreeHead for the TreeHeadLog that has been verified to contain this map tree head.
+ * The value returned by this will have been proven to be consistent with any passed prev value.
+ * Note that the TreeHeadLogTreeHead returned may differ between calls, even for the same treeSize,
+ * as all future LogTreeHeads can also be proven to contain the MapTreeHead.
+ *
+ * Typical clients that only need to access current data will instead use getVerifiedLatestMapState()
+ * @param {MapTreeState} prev previously held MapTreeState, may be null to skip consistency checks.
+ * @param {treeSize} treeSize the tree size to retrieve the hash for. Pass HEAD (0) to get the
+ * latest tree size.
+ * @param {mapTreeStateSuccessCallback} success called upon success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableMap.prototype.getVerifiedMapState = function (prev, treeSize, success, failure) {
     if ((treeSize != 0) && (prev != null) && (prev.getTreeSize() == treeSize)) {
@@ -350,6 +469,9 @@ VerifiableMap.prototype.getVerifiedMapState = function (prev, treeSize, success,
     }
 };
 
+/**
+ * @private
+ */
 function secondStageMapVerified(map, prev, mapHead, success, failure) {
     var prevThlth = null;
     if (prev != null) {
@@ -363,7 +485,20 @@ function secondStageMapVerified(map, prev, mapHead, success, failure) {
 }
 
 /**
- * No value passed on success.
+ * Private constructor. Use {@link ContinusecClient#getVerifiableLog(String)} to instantiate.
+ * @constructor
+ * @classdesc Class to interact with verifiable logs. Instantiate by callling {@link ContinusecClient#getVerifiableLog(String)} method
+ */
+var VerifiableLog = function (client, path) {
+    this.client = client;
+    this.path = path;
+};
+
+/**
+ * Send API call to create this log. This should only be called once, and subsequent
+ * calls will cause an exception to be generated.
+ * @param {emptySuccessCallback} success called on success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.create = function (success, failure) {
     this.client.makeRequest("PUT", this.path, null, function (data, req) {
@@ -374,7 +509,13 @@ VerifiableLog.prototype.create = function (success, failure) {
 };
 
 /**
- * AddEntryResponse is passed to success.
+ * Send API call to add an entry to the log. Note the entry is added asynchronously, so while
+ * the library will return as soon as the server acknowledges receipt of entry, it may not be
+ * reflected in the tree hash (or inclusion proofs) until the server has sequenced the entry.
+ *
+ * @param {VerifiableEntry} value the entry to add, often RawDataEntry, JsonEntry or RedactableJsonEntry.
+ * @param {addEntryResponseCallback} success called on success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.add = function (value, success, failure) {
     this.client.makeRequest("POST", this.path + "/entry" + value.getFormat(), value.getDataForUpload(), function (data, req) {
@@ -386,7 +527,12 @@ VerifiableLog.prototype.add = function (value, success, failure) {
 };
 
 /**
- * LogTreeHead passed to success.
+ * Get the tree hash for given tree size.
+ *
+ * @param {int} treeSize the tree size to retrieve the hash for. Pass HEAD (0) to get the
+ * latest tree size.
+ * @param {logTreeHeadSuccessCallback} success called on success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.getTreeHead = function (treeSize, success, failure) {
     this.client.makeRequest("GET", this.path + "/tree/" + treeSize, null, function (data, req) {
@@ -398,7 +544,12 @@ VerifiableLog.prototype.getTreeHead = function (treeSize, success, failure) {
 };
 
 /**
- * VerifiableEntry passed on success
+ * Get the entry at the specified index.
+ *
+ * @param {int} idx the index to retrieve (starts at zero).
+ * @param {VerifiableEntryFactory} factory the type of entry to return, usually one of RawDataEntryFactory, JsonEntryFactory, RedactedJsonEntryFactory.
+ * @param {verifiableEntrySuccessCallback} success called on success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.getEntry = function (idx, factory, success, failure) {
     this.client.makeRequest("GET", this.path + "/entry/" + idx + factory.getFormat(), null, function (data, req) {
@@ -409,7 +560,15 @@ VerifiableLog.prototype.getEntry = function (idx, factory, success, failure) {
 };
 
 /**
- * Each is called with (index, VerifiableEntry) for each entry, and then success afterwards with no value.
+ * Returns an iterator to efficiently fetch a contiguous set of entries. If for any
+ * reason not all entries are returned, the iterator will terminate early.
+ *
+ * @param {int} beginIdx the first entry to return
+ * @param {int} endIdx the last entry to return
+ * @param {VerifiableEntryFactory} factory the type of entry to return, usually one of RawDataEntryFactory, JsonEntryFactory, RedactedJsonEntryFactory.
+ * @param {verifiableEntryIndexSuccessCallback} each called for each entry
+ * @param {emptySuccessCallback} success called on success (after all values processed).
+ * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.getEntries = function (startIdx, endIdx, factory, each, success, failure) {
     this.client.makeRequest("GET", this.path + "/entries/" + startIdx + "-" + endIdx + factory.getFormat(), null, function (data, req) {
@@ -428,6 +587,17 @@ VerifiableLog.prototype.getEntries = function (startIdx, endIdx, factory, each, 
     });
 };
 
+/**
+ * Utility method for auditors that wish to audit the full content of a log, as well as the log operation.
+ * This method will retrieve all entries in batch from the log, and ensure that the root hash in head can be confirmed to accurately represent the contents
+ * of all of the log entries. If prev is not null, then additionally it is proven that the root hash in head is consistent with the root hash in prev.
+ * @param {LogTreeHead} prev a previous LogTreeHead representing the set of entries that have been previously audited. To indicate this is has not previously been audited, pass null,
+ * @param {LogTreeHead} head the LogTreeHead up to which we wish to audit the log. Upon successful completion the caller should persist this for a future iteration.
+ * @param {VerifiableEntryFactory} factory the type of entry to return, usually one of RawDataEntryFactory, JsonEntryFactory, RedactedJsonEntryFactory.
+ * @param {verifiableEntryIndexSuccessCallback} each which is called sequentially for each log entry as it is encountered.
+ * @param {emptySuccessCallback} success called on success (after all values processed).
+ * @param {failureCallback} failure called on failure
+ */
 VerifiableLog.prototype.verifyEntries = function (prev, head, factory, each, success, failure) {
     if ((prev == null) || (prev.getTreeSize() < head.getTreeSize())) {
         var log = this;
@@ -459,6 +629,9 @@ VerifiableLog.prototype.verifyEntries = function (prev, head, factory, each, suc
     }
 };
 
+/**
+ * @private
+ */
 function secondStageVerifyEntries(stack, log, prev, head, factory, each, success, failure) {
     var parIdx = 0;
     if (prev != null) {
@@ -494,7 +667,11 @@ function secondStageVerifyEntries(stack, log, prev, head, factory, each, success
 }
 
 /**
- * Success is called with LogInclusionProof.
+ * Get an inclusion proof for a given item for a specific tree size. Most clients will commonly use {@link #verifyInclusion(LogTreeHead,MerkleTreeLeaf)} instead.
+ * @param {int} treeSize the tree size for which the inclusion proof should be returned. This is usually as returned by {@link #getTreeHead(int)}.getTreeSize().
+ * @param {MerkleTreeLeaf} leaf the entry for which the inclusion proof should be returned. Note that AddEntryResponse and RawDataEntry/JsonEntry/RedactedJsonEntry each implement MerkleTreeLeaf.
+ * @param {logInclusionProofSuccessCallback} success called on success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.getInclusionProof = function (treeSize, leaf, success, failure) {
 	var lh = leaf.getLeafHash();
@@ -511,7 +688,12 @@ VerifiableLog.prototype.getInclusionProof = function (treeSize, leaf, success, f
 };
 
 /**
- * Success is called with LogInclusionProof.
+ * Get an inclusion proof for a specified tree size and leaf index. This is not used by typical clients,
+ * however it can be useful for audit operations and debugging tools. Typical clients will use {@link #verifyInclusion(LogTreeHead,MerkleTreeLeaf)}.
+ * @param {int} treeSize the tree size on which to base the proof.
+ * @param {int} leafIndex the leaf index for which to retrieve the inclusion proof.
+ * @param {logInclusionProofSuccessCallback} success called on success (note the proof is only partially filled in as it does not include the MerkleTreeLeaf hash for the item).
+ * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.getInclusionProofByIndex = function (treeSize, leafIndex, success, failure) {
     this.client.makeRequest("GET", this.path + "/tree/" + treeSize + "/inclusion/" + leafIndex, null, function (data, req) {
@@ -527,7 +709,11 @@ VerifiableLog.prototype.getInclusionProofByIndex = function (treeSize, leafIndex
 };
 
 /**
- * Success is called with no value
+ * Get an inclusion proof for a given item and verify it.
+ * @param {LogTreeHead} treeHead the tree head for which the inclusion proof should be returned. This is usually as returned by {@link #getTreeHead(int)}.
+ * @param {MerkleTreeLeaf} leaf the entry for which the inclusion proof should be returned. Note that AddEntryResponse and RawDataEntry/JsonEntry/RedactedJsonEntry each implement MerkleTreeLeaf.
+ * @param {emptySuccessCallback} success called on success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.verifyInclusion = function (head, leaf, success, failure) {
 	this.getInclusionProof(head.getTreeSize(), leaf, function (proof) {
@@ -544,7 +730,12 @@ VerifiableLog.prototype.verifyInclusion = function (head, leaf, success, failure
 }
 
 /**
- * Success is called with LogConsistencyProof
+ * ConsistencyProof returns an audit path which contains the set of Merkle Subtree hashes
+ * that demonstrate how the root hash is calculated for both the first and second tree sizes.
+ * @param {int} firstSize the size of the first tree.
+ * @param {int} secondSize the size of the second tree.
+ * @param {logConsistencyProofSuccessCallback} success called on success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.getConsistencyProof = function (firstSize, secondSize, success, failure) {
     this.client.makeRequest("GET", this.path + "/tree/" + secondSize + "/consistency/" + firstSize, null, function (data, req) {
@@ -560,7 +751,12 @@ VerifiableLog.prototype.getConsistencyProof = function (firstSize, secondSize, s
 };
 
 /**
- * Success is called with no value.
+ * verifyConsistency takes two tree heads, retrieves a consistency proof and then verifies it.
+ * The two tree heads may be in either order (even equal), but both must be greater than zero and non-nil.
+ * @param {LogTreeHead} a one log tree head
+ * @param {LogTreeHead} b another log tree head
+ * @param {emptySuccessCallback} success called on success
+ * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.verifyConsistency = function (a, b, success, failure) {
 	if (a.getTreeSize() <= 0) {
@@ -601,7 +797,12 @@ VerifiableLog.prototype.verifyConsistency = function (a, b, success, failure) {
 }
 
 /**
- * Success is passed a LogTreeHead.
+ * getVerifiedLatestTreeHead calls getVerifiedTreeHead() with HEAD to fetch the latest tree head,
+ * and additionally verifies that it is newer than the previously passed tree head.
+ * For first use, pass null to skip consistency checking.
+ * @param {LogTreeHead} prev a previously persisted log tree head
+ * @param {logTreeHeadSuccessCallback} success called on success, with a new LogTreeHead which has been verified to be consistent with the past tree head, or if no newer one present, the same value as passed in.
+ * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.getVerifiedLatestTreeHead = function (prev, success, failure) {
     this.getVerifiedTreeHead(prev, 0, function (head) {
@@ -615,7 +816,13 @@ VerifiableLog.prototype.getVerifiedLatestTreeHead = function (prev, success, fai
 }
 
 /**
- * Success is passed a LogTreeHead.
+ * getVerifiedTreeHead is a utility method to fetch a LogTreeHead and verifies that it is consistent with
+ * a tree head earlier fetched and persisted. For first use, pass null for prev, which will
+ * bypass consistency proof checking. Tree size may be older or newer than the previous head value.
+ * @param {LogTreeHead} prev a previously persisted log tree head
+ * @param {int} treeSize the tree size to fetch
+ * @param {logTreeHeadSuccessCallback} success called on success, with a LogTreeHead which has been verified to be consistent with the past tree head and matches the size specified.
+ * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.getVerifiedTreeHead = function (prev, treeSize, success, failure) {
     if ((treeSize != 0) && (prev != null) && (prev.getTreeSize() == treeSize)) {
@@ -635,7 +842,14 @@ VerifiableLog.prototype.getVerifiedTreeHead = function (prev, treeSize, success,
 }
 
 /**
- * Success is passed a LogTreeHead.
+ * verifySuppliedInclusionProof is a utility method that fetches any required tree heads that are needed
+ * to verify a supplied log inclusion proof. Additionally it will ensure that any fetched tree heads are consistent
+ * with any prior supplied LogTreeHead. For first use, pass null for prev, which will
+ * bypass consistency proof checking.
+ * @param {LogTreeHead} prev a previously persisted log tree head, or null
+ * @param {LogInclusionProof} proof an inclusion proof that may be for a different tree size than prev.getTreeSize()
+ * @param {logTreeHeadSuccessCallback} success called on success, with the verified (for consistency) LogTreeHead that was used for successful verification (of inclusion) of the supplied proof. This may be older than the LogTreeHead passed in.
+ * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.verifySuppliedInclusionProof = function (prev, proof, success, failure) {
     this.getVerifiedTreeHead(prev, proof.getTreeSize(), function (head) {
@@ -650,12 +864,21 @@ VerifiableLog.prototype.verifySuppliedInclusionProof = function (prev, proof, su
 
 
 /**
- * Success is passed LogTreeHead.
+ * Block until the log is able to produce a LogTreeHead that includes the specified MerkleTreeLeaf.
+ * This polls {@link #getTreeHead(int)} and {@link #verifyInclusion(LogTreeHead, MerkleTreeLeaf)} until
+ * such time as a new tree hash is produced that includes the given MerkleTreeLeaf. Exponential back-off
+ * is used when no tree hash is available. This is intended for test use - the returned tree head is not verified for consistency.
+ * @param {MerkleTreeLeaf} leaf the entry for which we should block until present. Note that AddEntryResponse and RawDataEntry/JsonEntry/RedactedJsonEntry each implement MerkleTreeLeaf.
+ * @param {logTreeHeadSuccessCallback} success called on success, with the LogTreeHead that this leaf is included in.
+ * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.blockUntilPresent = function (leaf, success, failure) {
     doBlockRound(this, -1, 0, leaf, success, failure);
 }
 
+/**
+ * @private
+ */
 function doBlockRound(log, lastHead, secsToSleep, leaf, success, failure) {
     log.getTreeHead(0, function (lth) {
         if (lth.getTreeSize() > lastHead) {
@@ -676,22 +899,63 @@ function doBlockRound(log, lastHead, secsToSleep, leaf, success, failure) {
     }, failure);
 }
 
-
+/**
+ * Package private constructor. Use VerifiableLog.add(UploadableEntry) to instantiate.
+ * @param {string} mtlHash leaf hash of the entry.
+ * @constructor
+ * @classdesc
+ * Response from adding entries to a log/map.
+ * Can be used in subsequent calls to {@link VerifiableLog#verifyInclusion(LogTreeHead, MerkleTreeLeaf)}.
+ */
 var AddEntryResponse = function (mtlHash) {
     this.mtlHash = mtlHash;
 }
+
+/**
+ * Get the leaf hash for this entry.
+ * @return {string} the leaf hash for this entry.
+ */
 AddEntryResponse.prototype.getLeafHash = function () { return this.mtlHash; };
 
+/**
+ * Creates a new LogConsistencyProof for given tree sizes and auditPath.
+ * @param {int} firstSize the size of the first tree.
+ * @param {int} secondSize the size of the second tree.
+ * @param {string[]} auditPath the audit proof returned by the server.
+ * @constructor
+ * @classdesc
+ * Class to represent the result of a call to {@link VerifiableLog#getConsistencyProof(int,int)}.
+ */
 var LogConsistencyProof = function (firstSize, secondSize, auditPath) {
 	this.firstSize = firstSize;
 	this.secondSize = secondSize;
 	this.auditPath = auditPath;
 };
-LogConsistencyProof.prototype.getFirstSize = function () { return this.firstSize; };
-LogConsistencyProof.prototype.getSecondSize = function () { return this.secondSize; };
-LogConsistencyProof.prototype.getAuditPath = function () { return this.auditPath; };
+
 /**
- * Head is a LogTreeHead
+ * Returns the size of the first tree.
+ * @return {int} the size of the first tree.
+ */
+LogConsistencyProof.prototype.getFirstSize = function () { return this.firstSize; };
+
+/**
+ * Returns the size of the second tree.
+ * @return {int} the size of the second tree.
+ */
+LogConsistencyProof.prototype.getSecondSize = function () { return this.secondSize; };
+
+/**
+ * Returns the audit path.
+ * @return {string[]} the audit path.
+ */
+LogConsistencyProof.prototype.getAuditPath = function () { return this.auditPath; };
+
+/**
+ * Verify that the consistency proof stored in this object can produce both the LogTreeHeads passed to this method.
+ * i.e, verify the append-only nature of the log between first.getTreeSize() and second.getTreeSize().
+ * @param {LogTreeHead} first the tree hash for the first tree size
+ * @param {LogTreeHead} second the tree hash for the second tree size
+ * @throws CONTINUSEC_VERIFICATION_ERROR if the verification fails for any reason.
  */
 LogConsistencyProof.prototype.verify = function (first, second) {
 	if (first.getTreeSize() != this.firstSize) {
@@ -758,19 +1022,52 @@ LogConsistencyProof.prototype.verify = function (first, second) {
     }
 }
 
+/**
+ * Create new LogInclusionProof.
+ *
+ * @param {int} treeSize the tree size for which this proof is valid.
+ * @param {string} leafHash the Merkle Tree Leaf hash of the entry this proof is valid for.
+ * @param {int} leafIndex the index of this entry in the log.
+ * @param {string[]} auditPath the list of Merkle Tree nodes that apply to this entry in order to generate the root hash and prove inclusion.
+ * @constructor
+ * @classdesc
+ * Class to represent proof of inclusion of an entry in a log.
+ */
 var LogInclusionProof = function (leafHash, treeSize, leafIndex, auditPath) {
 	this.leafHash = leafHash;
 	this.treeSize = treeSize;
 	this.leafIndex = leafIndex;
 	this.auditPath = auditPath;
 };
+
+/**
+ * Returns the leaf hash.
+ * @return {string} the leaf hash.
+ */
 LogInclusionProof.prototype.getLeafHash = function () { return this.leafHash; };
+
+/**
+ * Returns the tree size.
+ * @return {int} the tree size.
+ */
 LogInclusionProof.prototype.getTreeSize = function () { return this.treeSize; };
+
+/**
+ * Returns the leaf index.
+ * @return {int} the leaf index.
+ */
 LogInclusionProof.prototype.getLeafIndex = function () { return this.leafIndex; };
+
+/**
+ * Returns the audit path.
+ * @return {string[]} the audit path for this proof.
+ */
 LogInclusionProof.prototype.getAuditPath = function () { return this.auditPath; };
 
 /**
- * Head is a LogTreeHead
+ * For a given tree head, check to see if our proof can produce it for the same tree size.
+ * @param {LogTreeHea} head the LogTreeHead to compare
+ * @throws CONTINUSEC_VERIFICATION_ERROR if the verification fails for any reason.
  */
 LogInclusionProof.prototype.verify = function (head) {
 	if (head.getTreeSize() != this.treeSize) {
@@ -808,143 +1105,17 @@ LogInclusionProof.prototype.verify = function (head) {
     }
 };
 
-
-var RawDataEntryFactory = function () {};
-RawDataEntryFactory.prototype.getFormat = function () { return ""; };
-RawDataEntryFactory.prototype.createFromBytes = function (b) { return new RawDataEntry(b); };
-var RAW_DATA_ENTRY_FACTORY = new RawDataEntryFactory();
-
-var JsonEntryFactory = function () {};
-JsonEntryFactory.prototype.getFormat = function () { return "/xjson"; };
-JsonEntryFactory.prototype.createFromBytes = function (b) { return new JsonEntry(b); };
-var JSON_ENTRY_FACTORY = new JsonEntryFactory();
-
-var RedactedJsonEntryFactory = function () {};
-RedactedJsonEntryFactory.prototype.getFormat = function () { return "/xjson"; };
-RedactedJsonEntryFactory.prototype.createFromBytes = function (b) { return new RedactedJsonEntry(b); };
-var REDACTED_JSON_ENTRY_FACTORY = new RedactedJsonEntryFactory();
-
-var RawDataEntry = function (data) {
-	this.data = data;
-}
-
-RawDataEntry.prototype.getFormat = function () {
-	return "";
-}
-
-RawDataEntry.prototype.getDataForUpload = function () {
-	return this.data;
-}
-
-RawDataEntry.prototype.getData = function () {
-	return this.data;
-}
-
-RawDataEntry.prototype.getLeafHash = function () {
-	return leafMerkleTreeHash(this.data);
-}
-
-var JsonEntry = function (data) {
-	this.data = data;
-}
-
-JsonEntry.prototype.getFormat = function () {
-	return "/xjson";
-}
-
-JsonEntry.prototype.getDataForUpload = function () {
-	return this.data;
-}
-
-JsonEntry.prototype.getData = function () {
-	return this.data;
-}
-
-JsonEntry.prototype.getLeafHash = function () {
-	return leafMerkleTreeHash(objectHashWithStdRedaction(JSON.parse(this.data)));
-}
-
-var RedactableJsonEntry = function (data) {
-	this.data = data;
-}
-
-RedactableJsonEntry.prototype.getFormat = function () {
-	return "/xjson/redactable";
-}
-
-RedactableJsonEntry.prototype.getDataForUpload = function () {
-	return this.data;
-}
-
-var RedactedJsonEntry = function (data) {
-	this.data = data;
-}
-
-RedactedJsonEntry.prototype.getData = function () {
-	return JSON.stringify(shedRedactedWithStdRedaction(JSON.parse(this.data)));
-}
-
-RedactedJsonEntry.prototype.getLeafHash = function () {
-	return leafMerkleTreeHash(objectHashWithStdRedaction(JSON.parse(this.data)));
-}
-
-var MapTreeState = function (mapHead, treeHeadLogTreeHead) {
-	this.mapHead = mapHead;
-	this.treeHeadLogTreeHead = treeHeadLogTreeHead;
-}
-
-MapTreeState.prototype.getTreeSize = function () {
-	return this.mapHead.getTreeSize();
-}
-
-MapTreeState.prototype.getMapHead = function () {
-	return this.mapHead;
-}
-
-MapTreeState.prototype.getTreeHeadLogTreeHead = function () {
-	return this.treeHeadLogTreeHead;
-}
-
-var MapTreeHead = function (logTreeHead, rootHash) {
-	this.logTreeHead = logTreeHead;
-	this.rootHash = rootHash;
-}
-
-MapTreeHead.prototype.getTreeSize = function () {
-	return this.logTreeHead.getTreeSize();
-}
-
-MapTreeHead.prototype.getMutationLogTreeHead = function () {
-	return this.logTreeHead;
-}
-
-MapTreeHead.prototype.getRootHash = function () {
-	return this.rootHash;
-}
-
-MapTreeHead.prototype.getLeafHash = function () {
-	return leafMerkleTreeHash(objectHashWithStdRedaction({
-	    "mutation_log": {
-	        "tree_size": this.getMutationLogTreeHead().getTreeSize(),
-	        "tree_hash": btoa(this.getMutationLogTreeHead().getRootHash()),
-	    },
-	    "map_hash": btoa(this.getRootHash()),
-	}));
-}
-
-var LogTreeHead = function (treeSize, rootHash) {
-	this.treeSize = treeSize;
-	this.rootHash = rootHash;
-}
-
-LogTreeHead.prototype.getTreeSize = function () {
-	return this.treeSize;
-}
-
-LogTreeHead.prototype.getRootHash = function () {
-	return this.rootHash;
-}
-
+/**
+ * Constructor.
+ * @param {string} key the key for which this value is valid.
+ * @param {VerifiableEntry} value the value for this key (RawDataEntry, JsonEntry or RedactedJsonEntry).
+ * @param {string[]} auditPath the inclusion proof for this value in the map for a given tree size.
+ * @param {int} treeSize the tree size that the inclusion proof is valid for.
+ * @constructor
+ * @classdesc
+ * Class to represent the response for getting an entry from a map. It contains both the value
+ * itself, as well as an inclusion proof for how that value fits into the map root hash.
+ */
 var MapEntryResponse = function (key, value, treeSize, auditPath) {
     this.key = key;
     this.value = value;
@@ -952,22 +1123,43 @@ var MapEntryResponse = function (key, value, treeSize, auditPath) {
     this.auditPath = auditPath;
 };
 
+/**
+ * The key in this map entry response.
+ * @return {string} the key
+ */
 MapEntryResponse.prototype.getKey = function () {
 	return this.key;
 }
 
+/**
+ * The value in this map entry response.
+ * @return {VerifiableEntry} the value for this key (RawDataEntry, JsonEntry or RedactedJsonEntry).
+ */
 MapEntryResponse.prototype.getValue = function () {
 	return this.value;
 }
 
+/**
+ * The tree size that this map entry response is valid for.
+ * @return {int} the tree size
+ */
 MapEntryResponse.prototype.getTreeSize = function () {
 	return this.treeSize;
 }
 
+/**
+ * The audit path that can be applied to the value to reach the root hash for the map at this tree size.
+ * @return {string[]} the audit path - for a map this is always 256 values, null values indicate that the default leaf value for that index should be used.
+ */
 MapEntryResponse.prototype.getAuditPath = function () {
 	return this.auditPath;
 }
 
+/**
+ * For a given tree head, check to see if our proof can produce it for the same tree size.
+ * @param {MapTreeHead} head the MapTreeHead to compare
+ * @throws CONTINUSEC_VERIFICATION_ERROR if the verification fails for any reason.
+ */
 MapEntryResponse.prototype.verify = function (mapTreeHead) {
 	if (this.treeSize != mapTreeHead.getTreeSize()) {
 		throw CONTINUSEC_VERIFICATION_ERROR;
@@ -990,7 +1182,360 @@ MapEntryResponse.prototype.verify = function (mapTreeHead) {
     }
 }
 
-/* this method is private to the implementation and should not be called directly */
+/**
+ * Constructor - class is stateless so it takes no parameters.
+ * @constructor
+ * @classdesc
+ * Factory that produces RawDataEntry instances upon request.
+ */
+var RawDataEntryFactory = function () {};
+
+/**
+ * Returns the suffix added to calls to GET /entry/xxx
+ * @return {string} the suffix to add.
+ */
+RawDataEntryFactory.prototype.getFormat = function () { return ""; };
+
+/**
+ * Instantiate a new entry from bytes as returned by server.
+ * @param {string} bytes the bytes as returned by the server.
+ * @return {RawDataEntry} the new entry.
+ */
+RawDataEntryFactory.prototype.createFromBytes = function (b) { return new RawDataEntry(b); };
+
+/**
+ * Singleton instance of RawDataEntryFactory ready for your use.
+ */
+var RAW_DATA_ENTRY_FACTORY = new RawDataEntryFactory();
+
+
+/**
+ * Constructor - class is stateless so it takes no parameters.
+ * @constructor
+ * @classdesc
+ * Factory that produces JsonEntry instances upon request.
+ */
+var JsonEntryFactory = function () {};
+
+/**
+ * Returns the suffix added to calls to GET /entry/xxx
+ * @return {string} the suffix to add.
+ */
+JsonEntryFactory.prototype.getFormat = function () { return "/xjson"; };
+
+/**
+ * Instantiate a new entry from bytes as returned by server.
+ * @param {string} bytes the bytes as returned by the server.
+ * @return {JsonEntry} the new entry.
+ */
+JsonEntryFactory.prototype.createFromBytes = function (b) { return new JsonEntry(b); };
+
+/**
+ * Singleton instance of JsonEntryFactory ready for your use.
+ */
+var JSON_ENTRY_FACTORY = new JsonEntryFactory();
+
+
+/**
+ * Constructor - class is stateless so it takes no parameters.
+ * @constructor
+ * @classdesc
+ * Factory that produces RedactedJsonEntry instances upon request.
+ */
+var RedactedJsonEntryFactory = function () {};
+
+/**
+ * Returns the suffix added to calls to GET /entry/xxx
+ * @return {string} the suffix to add.
+ */
+RedactedJsonEntryFactory.prototype.getFormat = function () { return "/xjson"; };
+
+/**
+ * Instantiate a new entry from bytes as returned by server.
+ * @param {string} bytes the bytes as returned by the server.
+ * @return {RedactedJsonEntry} the new entry.
+ */
+RedactedJsonEntryFactory.prototype.createFromBytes = function (b) { return new RedactedJsonEntry(b); };
+
+/**
+ * Singleton instance of RedactedJsonEntryFactory ready for your use.
+ */
+var REDACTED_JSON_ENTRY_FACTORY = new RedactedJsonEntryFactory();
+
+
+/**
+ * Constructor.
+ * @param {string} data the raw data to represent.
+ * @constructor
+ * @classdesc
+ * Class to represent a log/map entry where no special processing is performed,
+ * that is, the bytes specified are stored as-is, and are used as-is for input
+ * to the Merkle Tree leaf function.
+ */
+var RawDataEntry = function (data) {
+	this.data = data;
+}
+
+/**
+ * Get the suffix that should be added to the PUT/POST request for this data format.
+ * @return {string} the suffix
+ */
+RawDataEntry.prototype.getFormat = function () {
+	return "";
+}
+
+/**
+ * Get the data that should be stored.
+ * @return {string} the data
+ */
+RawDataEntry.prototype.getDataForUpload = function () {
+	return this.data;
+}
+
+/**
+ * Get the data for processing.
+ * @return {string} the data
+ */
+RawDataEntry.prototype.getData = function () {
+	return this.data;
+}
+
+/**
+ * Calculate the leaf hash for this entry.
+ * @return {string} the Merkle Tree leaf hash for this entry.
+ */
+RawDataEntry.prototype.getLeafHash = function () {
+	return leafMerkleTreeHash(this.data);
+}
+
+/**
+ * Constructor.
+ * @param {string} data the raw JSON data.
+ * @constructor
+ * @classdesc
+ * Class to be used when entry MerkleTreeLeafs should be based on ObjectHash
+ * rather than the JSON bytes directly. Since there is no canonical encoding for JSON,
+ * it is useful to hash these objects in a more defined manner.
+ */
+var JsonEntry = function (data) {
+	this.data = data;
+}
+
+/**
+ * Get the suffix that should be added to the PUT/POST request for this data format.
+ * @return {string} the suffix
+ */
+JsonEntry.prototype.getFormat = function () {
+	return "/xjson";
+}
+
+/**
+ * Get the data that should be stored.
+ * @return {string} the data
+ */
+JsonEntry.prototype.getDataForUpload = function () {
+	return this.data;
+}
+
+/**
+ * Get the data for processing.
+ * @return {string} the data
+ */
+JsonEntry.prototype.getData = function () {
+	return this.data;
+}
+
+/**
+ * Calculate the leaf hash for this entry.
+ * @return {string} the Merkle Tree leaf hash for this entry.
+ */
+JsonEntry.prototype.getLeafHash = function () {
+	return leafMerkleTreeHash(objectHashWithStdRedaction(JSON.parse(this.data)));
+}
+
+/**
+ * Constructor.
+ * @param {string} data the raw data representing the JSON for this entry.
+ * @constructor
+ * @classdesc
+ * Class to represent JSON data should be made Redactable by the server upon upload.
+ * ie change all dictionary values to be nonce-value tuples and control access to fields
+ * based on the API key used to make the request.
+ */
+var RedactableJsonEntry = function (data) {
+	this.data = data;
+}
+
+/**
+ * Get the suffix that should be added to the PUT/POST request for this data format.
+ * @return {string} the suffix
+ */
+RedactableJsonEntry.prototype.getFormat = function () {
+	return "/xjson/redactable";
+}
+
+/**
+ * Get the data that should be stored.
+ * @return {string} the data
+ */
+RedactableJsonEntry.prototype.getDataForUpload = function () {
+	return this.data;
+}
+
+/**
+ * Constructor.
+ * @param {string} data the raw data respresenting the redacted JSON.
+ * @constructor
+ * @classdesc
+ * Class to represent redacted entries as returned by the server. Not to be confused
+ * with RedactableJsonEntry that should be used to represent objects that should
+ * be made Redactable by the server when uploaded.
+ */
+var RedactedJsonEntry = function (data) {
+	this.data = data;
+}
+
+/**
+ * Get the underlying JSON for this entry, with all Redactable nonce-tuples and
+ * redacted sub-objects stripped for ease of processing.
+ * @return {string} the data
+ */
+RedactedJsonEntry.prototype.getData = function () {
+	return JSON.stringify(shedRedactedWithStdRedaction(JSON.parse(this.data)));
+}
+
+/**
+ * Calculate the leaf hash for this entry.
+ * @return {string} the Merkle Tree leaf hash for this entry.
+ */
+RedactedJsonEntry.prototype.getLeafHash = function () {
+	return leafMerkleTreeHash(objectHashWithStdRedaction(JSON.parse(this.data)));
+}
+
+
+
+
+/**
+ * Constructor.
+ * @param {LogTreeHead} treeHeadLogTreeHead the tree head for the underlying tree head log that the mapTreeHead has been verified as being included.
+ * @param {MapTreeHead} mapHead the map tree head for the map
+ * @constructor
+ * @classdesc
+ * Class for MapTreeState as returned by VerifiableMap.getVerifiedMapState(MapTreeState,int).
+ */
+var MapTreeState = function (mapHead, treeHeadLogTreeHead) {
+	this.mapHead = mapHead;
+	this.treeHeadLogTreeHead = treeHeadLogTreeHead;
+}
+
+/**
+ * Utility method for returning the size of the map that this state represents.
+ * @return {int} the size
+ */
+MapTreeState.prototype.getTreeSize = function () {
+	return this.mapHead.getTreeSize();
+}
+
+/**
+ * Get the map tree head.
+ * @return {MapTreeHead} the map tree head
+ */
+MapTreeState.prototype.getMapHead = function () {
+	return this.mapHead;
+}
+
+/**
+ * Get corresponding the tree head log tree head.
+ * @return {LogTreeHead} the tree head log tree head.
+ */
+MapTreeState.prototype.getTreeHeadLogTreeHead = function () {
+	return this.treeHeadLogTreeHead;
+}
+
+/**
+ * Constructor.
+ * @param {string} rootHash the root hash for the map of this tree size.
+ * @param {LogTreeHead} logTreeHead the corresponding tree hash for the mutation log
+ * @constructor
+ * @classdesc
+ * Class for Tree Hash as returned for a map with a given size.
+ */
+var MapTreeHead = function (logTreeHead, rootHash) {
+	this.logTreeHead = logTreeHead;
+	this.rootHash = rootHash;
+}
+
+/**
+ * Returns the map size for this root hash.
+ * @return {int} the map size for this root hash.
+ */
+MapTreeHead.prototype.getTreeSize = function () {
+	return this.logTreeHead.getTreeSize();
+}
+
+/**
+ * Get corresponding the mutation log tree hash.
+ * @return {LogTreeHead} the mutation log tree hash.
+ */
+MapTreeHead.prototype.getMutationLogTreeHead = function () {
+	return this.logTreeHead;
+}
+
+/**
+ * Returns the map root hash for this map size.
+ * @return {string} the map root hash for this map size.
+ */
+MapTreeHead.prototype.getRootHash = function () {
+	return this.rootHash;
+}
+
+/**
+ * Implementation of getLeafHash() so that MapTreeHead can be used easily with
+ * VerifiableLog.verifyInclusion(LogTreeHead, MerkleTreeLeaf).
+ * @return {string} leaf hash base on the Object Hash for this map root hash with corresponding mutation log.
+ */
+MapTreeHead.prototype.getLeafHash = function () {
+	return leafMerkleTreeHash(objectHashWithStdRedaction({
+	    "mutation_log": {
+	        "tree_size": this.getMutationLogTreeHead().getTreeSize(),
+	        "tree_hash": btoa(this.getMutationLogTreeHead().getRootHash()),
+	    },
+	    "map_hash": btoa(this.getRootHash()),
+	}));
+}
+
+/**
+ * Constructor.
+ * @param {int} treeSize the tree size the root hash is valid for.
+ * @param {string} rootHash the root hash for the log of this tree size.
+ * @constructor
+ * @classdesc
+ * Class for Tree Hash as returned for a log with a given size.
+ */
+var LogTreeHead = function (treeSize, rootHash) {
+	this.treeSize = treeSize;
+	this.rootHash = rootHash;
+}
+
+/**
+ * Returns the tree size for this tree hash.
+ * @return {int} the tree size for this tree hash.
+ */
+LogTreeHead.prototype.getTreeSize = function () {
+	return this.treeSize;
+}
+
+/**
+ * Returns the root hash for this tree size.
+ * @return {string} the root hash for this tree size.
+ */
+LogTreeHead.prototype.getRootHash = function () {
+	return this.rootHash;
+}
+
+/**
+ * @private
+ */
 function binaryArrayToString(d) {
     var rv = "";
     for (var j = 0; j < d.length; j++) {
@@ -999,7 +1544,9 @@ function binaryArrayToString(d) {
     return rv;
 }
 
-/* this method is private to the implementation and should not be called directly */
+/**
+ * @private
+ */
 function hexString(a) {
     var rv = "";
     for (var i = 0; i < a.length; i++) {
@@ -1012,7 +1559,9 @@ function hexString(a) {
     return rv;
 }
 
-/* this method is private to the implementation and should not be called directly */
+/**
+ * @private
+ */
 function decodeHex(s) {
     var rv = "";
     for (var i = 0; (i + 1) < s.length; i += 2) {
@@ -1021,11 +1570,19 @@ function decodeHex(s) {
     return rv;
 }
 
-/* this method is private to the implementation and should not be called directly */
+/**
+ * @private
+ */
 function isPow2(k) {
     return (Math.pow(2, Math.round(Math.log2(k))) == k);
 }
 
+/**
+ * Create the path in a sparse merkle tree for a given key. ie a boolean array representing
+ * the big-endian index of the the hash of the key.
+ * @param {string} key the key
+ * @return {boolean[]} a length 256 array of booleans representing left (false) and right (true) path in the Sparse Merkle Tree.
+ */
 function constructKeyPath(key) {
     var h = sha256(key);
     var rv = [];
@@ -1037,20 +1594,38 @@ function constructKeyPath(key) {
     return rv;
 }
 
+/**
+ * @private
+ */
 function sha256(b) {
     var shaObj = new jsSHA("SHA-256", "BYTES");
     shaObj.update(b);
     return shaObj.getHash("BYTES");
 }
 
+/**
+ * Calculate the Merkle Tree Node Hash for an existing left and right hash (HASH(chr(1) || l || r)).
+ * @param {string} l the left node hash.
+ * @param {string} r the right node hash.
+ * @return {string{ the node hash for the combination.
+ */
 function nodeMerkleTreeHash(l, r) {
     return sha256(String.fromCharCode(1) + l + r);
 }
 
+/**
+ * Calculate the Merkle Tree Leaf Hash for an object (HASH(chr(0) || b)).
+ * @param {string} b the input to the leaf hash
+ * @return {string} the leaf hash.
+ */
 function leafMerkleTreeHash(b) {
     return sha256(String.fromCharCode(0) + b);
 }
 
+/**
+ * Generate the set of 257 default values for every level in a sparse Merkle Tree.
+ * @return {string[]} array of length 257 default values.
+ */
 function generateMapDefaultLeafValues() {
     var rv = [];
     var i;
@@ -1065,19 +1640,42 @@ function generateMapDefaultLeafValues() {
     return rv;
 }
 
+/**
+ * @private
+ */
 var DEFAULT_LEAF_VALUES = generateMapDefaultLeafValues();
 
 
+/**
+ * Prefix to indicate that this value should not be treated as a string, and instead
+ * the remainder of the string is the hex encoded hash to use.
+ */
 var REDACTED_PREFIX = "***REDACTED*** Hash: ";
 
+/**
+ * Calculate the objecthash for an object, assuming no redaction.
+ * @param {object} o the object to calculated the objecthash for.
+ * @return {string} the objecthash for this object
+ */
 function objectHash(o) {
 	return objectHashWithRedaction(o, "");
 }
 
+/**
+ * Calculate the objecthash for a Gson JsonElement object, assuming the standard redaction prefix is used.
+ * @param {object} o the object to calculated the objecthash for.
+ * @return {string} the objecthash for this object
+ */
 function objectHashWithStdRedaction(o) {
 	return objectHashWithRedaction(o, REDACTED_PREFIX);
 }
 
+/**
+ * Calculate the objecthash for an object, with a custom redaction prefix string.
+ * @param {object} o the object to calculated the objecthash for.
+ * @param {prefix} the string to use as a prefix to indicate that a string should be treated as a redacted subobject.
+ * @return {string} the objecthash for this object
+ */
 function objectHashWithRedaction(o, prefix) {
 	if (o == null) {
 		return sha256('n');
@@ -1141,10 +1739,25 @@ function objectHashWithRedaction(o, prefix) {
 	}
 }
 
+/**
+ * Strip away object values that are marked as redacted, and switch nonce-tuples back to normal values.
+ * This is useful when an object has been stored with Redactable nonces added, but now it has been retrieved
+ * and normal processing needs to be performed on it. This method uses the standard redaction prefix.
+ * @param {object} o the object that contains the redacted elements and nonce-tuples.
+ * @return {object} a new cleaned up object
+ */
 function shedRedactedWithStdRedaction(o) {
 	return shedRedacted(o, REDACTED_PREFIX);
 }
 
+/**
+ * Strip away object values that are marked as redacted, and switch nonce-tuples back to normal values.
+ * This is useful when an object has been stored with Redactable nonces added, but now it has been retrieved
+ * and normal processing needs to be performed on it.
+ * @param {object} o the object that contains the redacted elements and nonce-tuples.
+ * @param {string} prefix the redaction prefix that indicates if a string represents a redacted sub-object.
+ * @return {object} a new cleaned up object
+ */
 function shedRedacted(o, prefix) {
 	if (o == null) {
 		return null;
