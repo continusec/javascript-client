@@ -130,6 +130,38 @@ ContinusecClient.prototype.getVerifiableLog = function (name) {
 };
 
 /**
+ * Fetch the list of logs held by this account.
+ * @param {listLogsSuccessCallback} success called on success
+ * @param {failureCallback} failure called on failure
+ */
+ContinusecClient.prototype.listLogs = function (success, failure) {
+	this.makeRequest("GET", "/logs", null, function (data) {
+		var obj = JSON.parse(data);
+        var rv = [];
+        for (var i = 0; i < obj.results.length; i++) {
+            rv.push(new LogInfo(obj.results[i].name));
+        }
+        success(rv);
+	}, failure);
+};
+
+/**
+ * Fetch the list of maps held by this account.
+ * @param {listMapsSuccessCallback} success called on success
+ * @param {failureCallback} failure called on failure
+ */
+ContinusecClient.prototype.listMaps = function (success, failure) {
+	this.makeRequest("GET", "/maps", null, function (data) {
+		var obj = JSON.parse(data);
+        var rv = [];
+        for (var i = 0; i < obj.results.length; i++) {
+            rv.push(new MapInfo(obj.results[i]));
+        }
+        success(rv);
+	}, failure);
+};
+
+/**
  * @private
  */
 ContinusecClient.prototype.makeRequest = function (method, path, data, success, failure) {
@@ -265,7 +297,18 @@ VerifiableMap.prototype.getTreeHeadLog = function () {
  * @param {LogConsistencyProof} entry
  * @callback logConsistencyProofSuccessCallback
  */
+ 
+/**
+ * Success callback is called upon success with an array of LogInfo passed to it.
+ * @param {LogInfo[]} logs
+ * @callback listLogsSuccessCallback
+ */
 
+/**
+ * Success callback is called upon success with an array of MapInfo passed to it.
+ * @param {MapInfo[]} maps
+ * @callback listMapsSuccessCallback
+ */
 
 /**
  * Send API call to create this map. This should only be called once, and subsequent
@@ -916,6 +959,43 @@ var AddEntryResponse = function (mtlHash) {
  * @return {string} the leaf hash for this entry.
  */
 AddEntryResponse.prototype.getLeafHash = function () { return this.mtlHash; };
+
+
+/**
+ * Constructor.
+ * @param {string} name the name.
+ * @constructor
+ * @classdesc
+ * Class to metadata about a log.
+ */
+var LogInfo = function (name) {
+	this.name = name;
+};
+
+/**
+ * Returns the name.
+ * @return {string} the name.
+ */
+LogInfo.prototype.getName = function () { return this.name; };
+
+
+/**
+ * Constructor.
+ * @param {string} name the name.
+ * @constructor
+ * @classdesc
+ * Class to metadata about a map.
+ */
+var MapInfo = function (name) {
+	this.name = name;
+};
+
+/**
+ * Returns the name.
+ * @return {string} the name.
+ */
+MapInfo.prototype.getName = function () { return this.name; };
+
 
 /**
  * Creates a new LogConsistencyProof for given tree sizes and auditPath.

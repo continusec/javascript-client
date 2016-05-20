@@ -522,7 +522,7 @@ function testContinusec(idx) {
                             if (ve.getData() != "foo") {
                                 throw ve;
                             } else {
-                                console.log("All tests completed sucessfully.");
+								testContinusec(idx+1);
                             }
                         }, function (reason) {
                             throw reason;
@@ -534,6 +534,30 @@ function testContinusec(idx) {
             }, function (reason) {
                 throw reason;
             });
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 37:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		client.listLogs(function (logs) {
+			if (logs.length != 24) {
+				throw logs;
+			} else {
+				testContinusec(idx+1);
+			}
+        }, function (reason) {
+            throw reason;
+        });
+		break;
+	case 38:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		client.listMaps(function (maps) {
+			if (maps.length != 15) {
+				throw maps;
+			} else {
+				console.log("All tests completed sucessfully.");
+			}
         }, function (reason) {
             throw reason;
         });
