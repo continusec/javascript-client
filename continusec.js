@@ -46,7 +46,7 @@ b=a[0];g=a[1];d=a[2];f=a[3];e=a[4];h=a[5];n=a[6];l=a[7];for(p=0;p<r;p+=1)16>p?(k
 var CONTINUSEC_NETWORK_ERROR = "CONTINUSEC_NETWORK_ERROR";
 
 /**
- * Indicates invalid size or range in the request, e.g. tree size too large or small, or entry not found.
+ * Indicates invalid size or range in the request, e.g. tree size too large or small.
  */
 var CONTINUSEC_INVALID_RANGE_ERROR = "CONTINUSEC_INVALID_RANGE_ERROR";
 

@@ -146,7 +146,11 @@ function testContinusec(idx) {
 		log.verifyInclusion(testGlobal.head103, new RawDataEntry("foo27"), function () {
 		    throw "wrong";
 		}, function (reason) {
-            testContinusec(idx+1);
+			if (reason != CONTINUSEC_NOT_FOUND_ERROR) {
+				throw reason;
+			} else {
+				testContinusec(idx+1);
+			}
 		});
 		break;
 	case 12:
