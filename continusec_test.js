@@ -560,11 +560,45 @@ function testContinusec(idx) {
 			if (maps.length != 15) {
 				throw maps;
 			} else {
-				console.log("All tests completed sucessfully.");
+				testContinusec(idx+1);
 			}
         }, function (reason) {
             throw reason;
         });
 		break;
+	case 39:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var map = client.getVerifiableMap("nnewtestmap");
+		map.destroy(function () {
+		   map.destroy(function () {
+				throw "expected failure";
+			}, function (reason) {
+				if (reason != CONTINUSEC_OBJECT_CONFLICT_ERROR) {
+					throw reason;
+				}
+				testContinusec(idx+1);
+			});
+		}, function (reason) {
+			throw reason;
+		});
+		break;
+	case 40:
+		var client = new ContinusecClient("7981306761429961588", "allseeing", "http://localhost:8080");
+		var log = client.getVerifiableLog("newtestlog");
+		log.destroy(function () {
+		   log.destroy(function () {
+				throw "expected failure";
+			}, function (reason) {
+				if (reason != CONTINUSEC_OBJECT_CONFLICT_ERROR) {
+					throw reason;
+				}
+				testContinusec(idx+1);
+			});
+		}, function (reason) {
+			throw reason;
+		});
+		break;
+	case 41:
+		console.log("All tests completed sucessfully.");
 	}
 }

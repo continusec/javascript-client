@@ -325,6 +325,20 @@ VerifiableMap.prototype.create = function (success, failure) {
 };
 
 /**
+ * Destroy will send an API call to delete this map - this operation removes it permanently,
+ * and renders the name unusable again within the same account, so please use with caution.
+ * @param {emptySuccessCallback} success called on success
+ * @param {failureCallback} failure called on failure
+ */
+VerifiableMap.prototype.destroy = function (success, failure) {
+    this.client.makeRequest("DELETE", this.path, null, function (data, req) {
+        success();
+    }, function (reason) {
+        failure(reason);
+    });
+};
+
+/**
  * For a given key, return the value and inclusion proof for the given treeSize.
  * @param {string} key the key in the map.
  * @param {int} treeSize the tree size.
@@ -545,6 +559,20 @@ var VerifiableLog = function (client, path) {
  */
 VerifiableLog.prototype.create = function (success, failure) {
     this.client.makeRequest("PUT", this.path, null, function (data, req) {
+        success();
+    }, function (reason) {
+        failure(reason);
+    });
+};
+
+/**
+ * Destroy will send an API call to delete this log - this operation removes it permanently,
+ * and renders the name unusable again within the same account, so please use with caution.
+ * @param {emptySuccessCallback} success called on success
+ * @param {failureCallback} failure called on failure
+ */
+VerifiableLog.prototype.destroy = function (success, failure) {
+    this.client.makeRequest("DELETE", this.path, null, function (data, req) {
         success();
     }, function (reason) {
         failure(reason);
