@@ -1801,6 +1801,9 @@ function objectHashWithRedaction(o, prefix) {
 			return sha256('u' + unescape(encodeURIComponent(o.normalize('NFC'))));
 		}
 	} else if ((typeof o) == "number") { // we assume everything is a float (json doesn't distinguish)
+		if (o == 0.0) { // special case 0
+			return sha256('f+0:');
+		}
 		var s = "+";
 		if (o < 0) {
 			s = "-";
