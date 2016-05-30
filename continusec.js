@@ -155,7 +155,7 @@ ContinusecClient.prototype.listMaps = function (success, failure) {
 		var obj = JSON.parse(data);
         var rv = [];
         for (var i = 0; i < obj.results.length; i++) {
-            rv.push(new MapInfo(obj.results[i]));
+            rv.push(new MapInfo(obj.results[i].name));
         }
         success(rv);
 	}, failure);
