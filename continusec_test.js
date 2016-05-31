@@ -599,6 +599,98 @@ function testContinusec(idx) {
 		});
 		break;
 	case 41:
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var map = client.getVerifiableMap("mapjson");
+		map.getVerifiedLatestMapState(null, function (m3) {
+			testGlobal.m3 = m3;
+			testContinusec(idx+1);
+		}, function (reason) {
+			throw reason;
+		});
+		break;
+	case 42:
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var map = client.getVerifiableMap("mapjson");
+		map.getVerifiedValue("stdjson", testGlobal.m3, JSON_ENTRY_FACTORY, function () {
+			testContinusec(idx+1);
+		}, function (reason) {
+			throw reason;
+		});
+		break;
+	case 43:
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var map = client.getVerifiableMap("mapjson");
+		map.getVerifiedValue("redjson", testGlobal.m3, REDACTED_JSON_ENTRY_FACTORY, function () {
+			testContinusec(idx+1);
+		}, function (reason) {
+			throw reason;
+		});
+		break;
+	case 44:
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var map = client.getVerifiableMap("mapjson");
+		map.getVerifiedValue("xstdjson", testGlobal.m3, JSON_ENTRY_FACTORY, function () {
+			testContinusec(idx+1);
+		}, function (reason) {
+			throw reason;
+		});
+		break;
+	case 45:
+		var client = new ContinusecClient("7981306761429961588", "c9fc80d4e19ddbf01a4e6b5277a29e1bffa88fe047af9d0b9b36de536f85c2c6", "http://localhost:8080");
+		var map = client.getVerifiableMap("mapjson");
+		map.getVerifiedValue("xredjson", testGlobal.m3, REDACTED_JSON_ENTRY_FACTORY, function () {
+			testContinusec(idx+1);
+		}, function (reason) {
+			throw reason;
+		});
+		break;
+	case 46:
+		var client = new ContinusecClient("7981306761429961588", "redacted", "http://localhost:8080");
+		var map = client.getVerifiableMap("mapjson");
+		map.getVerifiedLatestMapState(null, function (m3) {
+			testGlobal.m3 = m3;
+			testContinusec(idx+1);
+		}, function (reason) {
+			throw reason;
+		});
+		break;
+	case 47:
+		var client = new ContinusecClient("7981306761429961588", "redacted", "http://localhost:8080");
+		var map = client.getVerifiableMap("mapjson");
+		map.getVerifiedValue("stdjson", testGlobal.m3, JSON_ENTRY_FACTORY, function () {
+			testContinusec(idx+1);
+		}, function (reason) {
+			throw reason;
+		});
+		break;
+	case 48:
+		var client = new ContinusecClient("7981306761429961588", "redacted", "http://localhost:8080");
+		var map = client.getVerifiableMap("mapjson");
+		map.getVerifiedValue("redjson", testGlobal.m3, REDACTED_JSON_ENTRY_FACTORY, function () {
+			testContinusec(idx+1);
+		}, function (reason) {
+			throw reason;
+		});
+		break;
+	case 49:
+		var client = new ContinusecClient("7981306761429961588", "redacted", "http://localhost:8080");
+		var map = client.getVerifiableMap("mapjson");
+		map.getVerifiedValue("xstdjson", testGlobal.m3, JSON_ENTRY_FACTORY, function () {
+			testContinusec(idx+1);
+		}, function (reason) {
+			throw reason;
+		});
+		break;
+	case 50:
+		var client = new ContinusecClient("7981306761429961588", "redacted", "http://localhost:8080");
+		var map = client.getVerifiableMap("mapjson");
+		map.getVerifiedValue("xredjson", testGlobal.m3, REDACTED_JSON_ENTRY_FACTORY, function () {
+			testContinusec(idx+1);
+		}, function (reason) {
+			throw reason;
+		});
+		break;
+	case 51:
 		console.log("All tests completed sucessfully.");
 	}
 }

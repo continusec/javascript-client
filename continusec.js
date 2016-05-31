@@ -1458,7 +1458,7 @@ JsonEntry.prototype.getData = function () {
  * @return {string} the Merkle Tree leaf hash for this entry.
  */
 JsonEntry.prototype.getLeafHash = function () {
-	return leafMerkleTreeHash(objectHashWithStdRedaction(JSON.parse(this.data)));
+	return leafMerkleTreeHash(this.data == "" ? "" : objectHashWithStdRedaction(JSON.parse(this.data)));
 }
 
 /**
@@ -1517,7 +1517,7 @@ RedactedJsonEntry.prototype.getData = function () {
  * @return {string} the Merkle Tree leaf hash for this entry.
  */
 RedactedJsonEntry.prototype.getLeafHash = function () {
-	return leafMerkleTreeHash(objectHashWithStdRedaction(JSON.parse(this.data)));
+	return leafMerkleTreeHash(this.data == "" ? "" : objectHashWithStdRedaction(JSON.parse(this.data)));
 }
 
 
