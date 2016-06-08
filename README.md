@@ -4,7 +4,7 @@ This is the open-source (Apache 2 License) Javascript client library for the Con
 
 To get started, see the docs at:
 
-https://www.continusec.com/documentation/client
+https://www.continusec.com/documentation/clients
 
 To use, load `continusec.js` in your HTML:
 
