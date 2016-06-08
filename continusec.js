@@ -1779,8 +1779,7 @@ function objectHashWithStdRedaction(o) {
 }
 
 /**
- * Safari does not appear to yet support String.prototype.normalize(). Rather than completely fail,
- * instead we'll print a warning to the console and proceed anyway.
+ * @private
  */
 var normalizeFunction = null;
 if (typeof "foo".normalize === 'function') {
@@ -1788,7 +1787,8 @@ if (typeof "foo".normalize === 'function') {
         return unescape(encodeURIComponent(o.normalize('NFC')));
     };
 } else {
-    console.warn("String.prototype.normalize() not found - will result in incorrect hashes for some Unicode values.");
+    // Safari does not support normalize() at time of writing (June 2016)
+    console.warn("String.prototype.normalize() not found - will result in incorrect hashes for Unicode values.");
     normalizeFunction = function(o) {
         return o;
     };
