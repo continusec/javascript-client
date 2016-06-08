@@ -1779,6 +1779,22 @@ function objectHashWithStdRedaction(o) {
 }
 
 /**
+ * Safari does not appear to yet support String.prototype.normalize(). Rather than completely fail,
+ * instead we'll print a warning to the console and proceed anyway.
+ */
+var normalizeFunction = null;
+if (typeof "foo".normalize === 'function') {
+    normalizeFunction = function(o) {
+        return unescape(encodeURIComponent(o.normalize('NFC')));
+    };
+} else {
+    console.warn("String.prototype.normalize() not found - will result in incorrect hashes for some Unicode values.");
+    normalizeFunction = function(o) {
+        return o;
+    };
+}
+
+/**
  * Calculate the objecthash for an object, with a custom redaction prefix string.
  * @param {object} o the object to calculated the objecthash for.
  * @param {prefix} the string to use as a prefix to indicate that a string should be treated as a redacted subobject.
@@ -1797,8 +1813,7 @@ function objectHashWithRedaction(o, prefix) {
 		if (prefix.length > 0 && o.startsWith(prefix)) {
 			return decodeHex(o.substring(prefix.length));
 		} else {
-			// yikes, this little dances encodes as UTF8
-			return sha256('u' + unescape(encodeURIComponent(o.normalize('NFC'))));
+			return sha256('u' + normalizeFunction(o));
 		}
 	} else if ((typeof o) == "number") { // we assume everything is a float (json doesn't distinguish)
 		if (o == 0.0) { // special case 0
