@@ -1682,7 +1682,10 @@ function decodeHex(s) {
  * @private
  */
 function isPow2(k) {
-    return (Math.pow(2, Math.round(Math.log2(k))) == k);
+    while (((k % 2) == 0) && (k > 1)) {
+        k /= 2;
+    }
+    return (k == 1);
 }
 
 /**
