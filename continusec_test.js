@@ -691,6 +691,15 @@ function testContinusec(idx) {
 		});
 		break;
 	case 51:
+		var client = new ContinusecClient("7981306761429961588", "testupdate", "http://localhost:8080");
+		var map = client.getVerifiableMap("loadtestmap2");
+		map.updateValue("fooyo", new RawDataEntry("bar"), new RawDataEntry(""), function () {
+            testContinusec(idx+1);
+		}, function (reason) {
+		    throw reason;
+		});
+		break;
+	case 52:
 		console.log("All tests completed sucessfully.");
 	}
 }

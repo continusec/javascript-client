@@ -135,7 +135,7 @@ ContinusecClient.prototype.getVerifiableLog = function (name) {
  * @param {failureCallback} failure called on failure
  */
 ContinusecClient.prototype.listLogs = function (success, failure) {
-	this.makeRequest("GET", "/logs", null, function (data) {
+	this.makeRequest("GET", "/logs", null, null, function (data) {
 		var obj = JSON.parse(data);
         var rv = [];
         for (var i = 0; i < obj.results.length; i++) {
@@ -151,7 +151,7 @@ ContinusecClient.prototype.listLogs = function (success, failure) {
  * @param {failureCallback} failure called on failure
  */
 ContinusecClient.prototype.listMaps = function (success, failure) {
-	this.makeRequest("GET", "/maps", null, function (data) {
+	this.makeRequest("GET", "/maps", null, null, function (data) {
 		var obj = JSON.parse(data);
         var rv = [];
         for (var i = 0; i < obj.results.length; i++) {
@@ -164,7 +164,7 @@ ContinusecClient.prototype.listMaps = function (success, failure) {
 /**
  * @private
  */
-ContinusecClient.prototype.makeRequest = function (method, path, data, success, failure) {
+ContinusecClient.prototype.makeRequest = function (method, path, data, extraHeaders, success, failure) {
     var req = new XMLHttpRequest();
     req.onload = function (evt) {
         switch (req.status) {
@@ -193,6 +193,11 @@ ContinusecClient.prototype.makeRequest = function (method, path, data, success, 
     req.open(method, this.baseURL + "/v1/account/" + this.account + path, true);
     req.responseType = "arraybuffer";
     req.setRequestHeader("Authorization", 'Key ' + this.apiKey);
+    if (extraHeaders != null) {
+    	for (var k in extraHeaders) {
+    		req.setRequestHeader(k, extraHeaders[k]);
+    	}
+    }
     req.send(data);
 };
 
@@ -317,7 +322,7 @@ VerifiableMap.prototype.getTreeHeadLog = function () {
  * @param {failureCallback} failure called on failure
  */
 VerifiableMap.prototype.create = function (success, failure) {
-    this.client.makeRequest("PUT", this.path, null, function (data, req) {
+    this.client.makeRequest("PUT", this.path, null, null, function (data, req) {
         success();
     }, function (reason) {
         failure(reason);
@@ -331,7 +336,7 @@ VerifiableMap.prototype.create = function (success, failure) {
  * @param {failureCallback} failure called on failure
  */
 VerifiableMap.prototype.destroy = function (success, failure) {
-    this.client.makeRequest("DELETE", this.path, null, function (data, req) {
+    this.client.makeRequest("DELETE", this.path, null, null, function (data, req) {
         success();
     }, function (reason) {
         failure(reason);
@@ -347,7 +352,7 @@ VerifiableMap.prototype.destroy = function (success, failure) {
  * @param {failureCallback} failure called on failure
  */
 VerifiableMap.prototype.getValue = function (key, treeSize, factory, success, failure) {
-    this.client.makeRequest("GET", this.path + "/tree/" + treeSize + "/key/h/" + hexString(key) + factory.getFormat(), null, function (data, req) {
+    this.client.makeRequest("GET", this.path + "/tree/" + treeSize + "/key/h/" + hexString(key) + factory.getFormat(), null, null, function (data, req) {
         var verifiedTreeSize = req.getResponseHeader("X-Verified-Treesize");
         if (verifiedTreeSize === null) {
             failure(CONTINUSEC_NOT_FOUND_ERROR);
@@ -407,7 +412,28 @@ VerifiableMap.prototype.getVerifiedValue = function (key, mapState, factory, suc
  * @param {failureCallback} failure called on failure
  */
 VerifiableMap.prototype.setValue = function (key, value, success, failure) {
-    this.client.makeRequest("PUT", this.path + "/key/h/" + hexString(key) + value.getFormat(), value.getDataForUpload(), function (data, req) {
+    this.client.makeRequest("PUT", this.path + "/key/h/" + hexString(key) + value.getFormat(), value.getDataForUpload(), null, function (data, req) {
+        var obj = JSON.parse(data);
+        success(new AddEntryResponse(atob(obj.leaf_hash)));
+    }, function (reason) {
+        failure(reason);
+    });
+};
+
+/**
+ * Set the value for a given key in the map, conditional on the previous leaf hash.
+ * Calling this has the effect of adding a mutation to the
+ * mutation log for the map, which then reflects in the root hash for the map. This occurs asynchronously.
+ * @param {string} key the key to set.
+ * @param {value} value the entry to set to key to. Typically one of {@link RawDataEntry}, {@link JsonEntry} or {@link RedactableJsonEntry}.
+ * @param {LeafHash} prevLeafHash the previous leaf hash - must implement getLeafHash(). Typically one of {@link RawDataEntry}, {@link JsonEntry}.
+ * @param {addEntryResponseCallback} success called upon success
+ * @param {failureCallback} failure called on failure
+ */
+VerifiableMap.prototype.updateValue = function (key, value, prevLeafHash, success, failure) {
+    this.client.makeRequest("PUT", this.path + "/key/h/" + hexString(key) + value.getFormat(), value.getDataForUpload(), {
+    	"X-Previous-LeafHash": hexString(prevLeafHash.getLeafHash()),
+    }, function (data, req) {
         var obj = JSON.parse(data);
         success(new AddEntryResponse(atob(obj.leaf_hash)));
     }, function (reason) {
@@ -423,7 +449,7 @@ VerifiableMap.prototype.setValue = function (key, value, success, failure) {
  * @param {failureCallback} failure called on failure
  */
 VerifiableMap.prototype.deleteValue = function (key, success, failure) {
-    this.client.makeRequest("DELETE", this.path + "/key/h/" + hexString(key), null, function (data, req) {
+    this.client.makeRequest("DELETE", this.path + "/key/h/" + hexString(key), null, null, function (data, req) {
         var obj = JSON.parse(data);
         success(new AddEntryResponse(atob(obj.leaf_hash)));
     }, function (reason) {
@@ -440,7 +466,7 @@ VerifiableMap.prototype.deleteValue = function (key, success, failure) {
  * @param {failureCallback} failure called on failure
  */
 VerifiableMap.prototype.getTreeHead = function (treeSize, success, failure) {
-    this.client.makeRequest("GET", this.path + "/tree/" + treeSize, null, function (data, req) {
+    this.client.makeRequest("GET", this.path + "/tree/" + treeSize, null, null, function (data, req) {
         var obj = JSON.parse(data);
         success(new MapTreeHead(new LogTreeHead(Number(obj.mutation_log.tree_size), atob(obj.mutation_log.tree_hash)), atob(obj.map_hash)));
     }, function (reason) {
@@ -558,7 +584,7 @@ var VerifiableLog = function (client, path) {
  * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.create = function (success, failure) {
-    this.client.makeRequest("PUT", this.path, null, function (data, req) {
+    this.client.makeRequest("PUT", this.path, null, null, function (data, req) {
         success();
     }, function (reason) {
         failure(reason);
@@ -572,7 +598,7 @@ VerifiableLog.prototype.create = function (success, failure) {
  * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.destroy = function (success, failure) {
-    this.client.makeRequest("DELETE", this.path, null, function (data, req) {
+    this.client.makeRequest("DELETE", this.path, null, null, function (data, req) {
         success();
     }, function (reason) {
         failure(reason);
@@ -589,7 +615,7 @@ VerifiableLog.prototype.destroy = function (success, failure) {
  * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.add = function (value, success, failure) {
-    this.client.makeRequest("POST", this.path + "/entry" + value.getFormat(), value.getDataForUpload(), function (data, req) {
+    this.client.makeRequest("POST", this.path + "/entry" + value.getFormat(), value.getDataForUpload(), null, function (data, req) {
         var obj = JSON.parse(data);
         success(new AddEntryResponse(atob(obj.leaf_hash)));
     }, function (reason) {
@@ -606,7 +632,7 @@ VerifiableLog.prototype.add = function (value, success, failure) {
  * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.getTreeHead = function (treeSize, success, failure) {
-    this.client.makeRequest("GET", this.path + "/tree/" + treeSize, null, function (data, req) {
+    this.client.makeRequest("GET", this.path + "/tree/" + treeSize, null, null, function (data, req) {
         var obj = JSON.parse(data);
         success(new LogTreeHead(Number(obj.tree_size), obj.tree_hash === null ? null : atob(obj.tree_hash)));
     }, function (reason) {
@@ -623,7 +649,7 @@ VerifiableLog.prototype.getTreeHead = function (treeSize, success, failure) {
  * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.getEntry = function (idx, factory, success, failure) {
-    this.client.makeRequest("GET", this.path + "/entry/" + idx + factory.getFormat(), null, function (data, req) {
+    this.client.makeRequest("GET", this.path + "/entry/" + idx + factory.getFormat(), null, null, function (data, req) {
         success(factory.createFromBytes(data, idx));
     }, function (reason) {
         failure(reason);
@@ -642,7 +668,7 @@ VerifiableLog.prototype.getEntry = function (idx, factory, success, failure) {
  * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.getEntries = function (startIdx, endIdx, factory, each, success, failure) {
-    this.client.makeRequest("GET", this.path + "/entries/" + startIdx + "-" + endIdx + factory.getFormat(), null, function (data, req) {
+    this.client.makeRequest("GET", this.path + "/entries/" + startIdx + "-" + endIdx + factory.getFormat(), null, null, function (data, req) {
     	try {
 			var obj = JSON.parse(data);
 			for (var i = 0; i < obj.entries.length; i++) {
@@ -746,7 +772,7 @@ function secondStageVerifyEntries(stack, log, prev, head, factory, each, success
  */
 VerifiableLog.prototype.getInclusionProof = function (treeSize, leaf, success, failure) {
 	var lh = leaf.getLeafHash();
-    this.client.makeRequest("GET", this.path + "/tree/" + treeSize + "/inclusion/h/" + hexString(lh), null, function (data, req) {
+    this.client.makeRequest("GET", this.path + "/tree/" + treeSize + "/inclusion/h/" + hexString(lh), null, null, function (data, req) {
         var obj = JSON.parse(data);
         var auditPath = [];
         for (var i = 0; i < obj.proof.length; i++) {
@@ -767,7 +793,7 @@ VerifiableLog.prototype.getInclusionProof = function (treeSize, leaf, success, f
  * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.getInclusionProofByIndex = function (treeSize, leafIndex, success, failure) {
-    this.client.makeRequest("GET", this.path + "/tree/" + treeSize + "/inclusion/" + leafIndex, null, function (data, req) {
+    this.client.makeRequest("GET", this.path + "/tree/" + treeSize + "/inclusion/" + leafIndex, null, null, function (data, req) {
         var obj = JSON.parse(data);
         var auditPath = [];
         for (var i = 0; i < obj.proof.length; i++) {
@@ -809,7 +835,7 @@ VerifiableLog.prototype.verifyInclusion = function (head, leaf, success, failure
  * @param {failureCallback} failure called on failure
  */
 VerifiableLog.prototype.getConsistencyProof = function (firstSize, secondSize, success, failure) {
-    this.client.makeRequest("GET", this.path + "/tree/" + secondSize + "/consistency/" + firstSize, null, function (data, req) {
+    this.client.makeRequest("GET", this.path + "/tree/" + secondSize + "/consistency/" + firstSize, null, null, function (data, req) {
         var obj = JSON.parse(data);
         var auditPath = [];
         for (var i = 0; i < obj.proof.length; i++) {
